@@ -20,7 +20,7 @@
   justify-content: space-between;
   padding-block: 18px;
 }
-.crossing-heading h1 { font-size: clamp(2.05rem, 4.2vw, 4.2rem); word-spacing: .075em; }
+.crossing-heading h1 { font-size: clamp(2.05rem, 4.2vw, 4.2rem); word-spacing: .015em; }
 .crossing-heading p { color: var(--muted); font-size: .88rem; }
 .crossing-stage {
   position: relative;
@@ -104,15 +104,15 @@
   height: 100%;
   object-fit: contain;
   opacity: var(--rise);
-  transform: translateY(calc((1 - var(--rise)) * 78px))
+  transform: translateY(calc(var(--angle) * (1 - var(--rise)) * 161%))
     rotate(calc(var(--angle) * (-30deg + var(--rise) * 15deg)))
     scale(calc(.69 + var(--rise) * .31));
 }
 .crossing-particles i {
-  --grain-x: -22px; --grain-y: -21px; --grain-size: 12px;
+  --grain-x: -22px; --grain-y: 21px; --grain-size: 12px;
   position: absolute;
   z-index: 1;
-  top: 11%;
+  top: 46%;
   left: 50%;
   width: var(--grain-size);
   aspect-ratio: 1.17;
@@ -122,76 +122,82 @@
   box-shadow: 1px 2px 4px #471c1152;
   transform: translate(calc(var(--angle) * var(--rise) * var(--grain-x)), calc(var(--rise) * var(--grain-y))) rotate(var(--grain-y));
 }
-.crossing-particles i:nth-child(2) { --grain-x: 27px; --grain-y: -32px; --grain-size: 14px; }
-.crossing-particles i:nth-child(3) { --grain-x: 42px; --grain-y: -6px; --grain-size: 9px; }
-.crossing-particles i:nth-child(4) { --grain-x: 54px; --grain-y: -43px; --grain-size: 11px; }
-.crossing-particles i:nth-child(5) { --grain-x: 68px; --grain-y: -29px; --grain-size: 8px; }
-.crossing-particles i:nth-child(6) { --grain-x: 76px; --grain-y: -56px; --grain-size: 9px; }
+.crossing-particles i:nth-child(2) { --grain-x: 27px; --grain-y: 32px; --grain-size: 14px; }
+.crossing-particles i:nth-child(3) { --grain-x: 42px; --grain-y: 6px; --grain-size: 9px; }
+.crossing-particles i:nth-child(4) { --grain-x: 54px; --grain-y: 43px; --grain-size: 11px; }
+.crossing-particles i:nth-child(5) { --grain-x: 68px; --grain-y: 29px; --grain-size: 8px; }
+.crossing-particles i:nth-child(6) { --grain-x: 76px; --grain-y: 56px; --grain-size: 9px; }
 .crossing-stage[data-ready] .crossing-pack,
 .crossing-stage[data-ready] .crossing-particles { visibility: hidden; }
-.crossing-scene { z-index: 1; }
-.crossing-copy {
+.scene-host {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .2s;
+}
+.scene-host canvas { display: block; width: 100%; height: 100%; }
+[data-ready] .scene-host { opacity: 1; }
+.crossing-buy {
   position: absolute;
   left: var(--copy-x);
   top: var(--copy-y);
-  display: grid;
-  justify-items: start;
-  gap: 4px;
-}
-.crossing-number {
-  color: #fff9eb;
-  font: 700 .63rem/1.3 var(--mono);
-  letter-spacing: .1em;
-}
-.crossing-copy strong {
-  font-size: clamp(.98rem, 1.66vw, 1.72rem);
-  font-weight: 800;
-  line-height: 1.13;
-  letter-spacing: -.04em;
-  text-wrap: balance;
-}
-.crossing-buy {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  min-height: 37px;
-  margin-top: 6px;
-  padding: 4px 9px;
+  gap: 8px;
+  min-height: 42px;
+  padding: 5px 13px;
   border: 1px solid #fffae997;
   border-radius: 6px;
-  background: #260e0b45;
-  font-size: clamp(.65rem, .95vw, .83rem);
+  background: #260e0b48;
+  font-size: .98rem;
   font-weight: 800;
   white-space: nowrap;
 }
-.crossing-buy svg { width: 14px; height: 14px; }
+.crossing-buy svg { width: 15px; height: 15px; }
 .crossing-band:focus-visible .crossing-buy { outline: 2px solid #fff9eb; outline-offset: 4px; }
 .crossing-band:hover .crossing-buy { background: #fff9eb; color: var(--ink); }
-.cart-arrival {
+
+.cart-train {
   position: fixed;
   z-index: 7;
-  top: clamp(86px, 18vh, 190px);
-  right: 0;
-  width: min(262px, calc(100vw - 30px));
-  padding: 18px 20px;
-  border: 1px solid var(--line);
-  border-right: 0;
-  border-radius: 16px 0 0 16px;
-  background: var(--surface);
-  color: var(--ink);
-  box-shadow: 0 18px 48px #27180b40;
-  transform: translateX(calc(100% + 45px));
-  transition: transform .28s cubic-bezier(.22,.78,.23,1), visibility .28s;
+  bottom: clamp(10px, 4vh, 40px);
+  left: clamp(14px, 17vw, 260px);
+  width: clamp(245px, 35vw, 510px);
+  aspect-ratio: 310 / 186;
   pointer-events: none;
-  visibility: hidden;
+  color: #fff4d9;
+  filter: drop-shadow(0 3px 1px #50230c) drop-shadow(0 9px 16px #26120d90);
 }
-.cart-arrival[data-open] { transform: translateX(0); visibility: visible; }
-.cart-arrival-heading { display: flex; justify-content: space-between; gap: 8px; font-weight: 800; }
-.cart-arrival-heading strong { color: var(--accent); }
-.cart-arrival-target { position: relative; display: grid; place-items: end center; height: 106px; }
-.cart-arrival-target svg { z-index: 1; width: 73px; height: 73px; color: var(--accent); filter: drop-shadow(0 2px 0 var(--surface)); }
-.cart-arrival-target img { position: absolute; left: 50%; top: 12px; width: 45px; transform: translateX(-50%) rotate(-12deg); }
-.cart-arrival p { min-height: 24px; text-align: center; color: var(--muted); font-size: .82rem; }
+.cart-train > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.cart-train-packs {
+  position: absolute;
+  left: 27%;
+  right: 12%;
+  bottom: 33%;
+  height: 47%;
+  display: flex;
+  justify-content: center;
+  gap: 1%;
+}
+.cart-train-packs span { position: relative; width: 25%; min-width: 0; transform: rotate(-9deg); }
+.cart-train-packs span:nth-child(even) { transform: rotate(8deg); }
+.cart-train-packs img { width: 100%; height: 100%; object-fit: contain; object-position: bottom; }
+.cart-train-packs b {
+  position: absolute;
+  top: 5%;
+  right: 4%;
+  display: grid;
+  place-items: center;
+  min-width: 19px;
+  padding: 1px 4px;
+  border-radius: 20px;
+  background: #512916;
+  color: #fff7e3;
+  font-size: .8rem;
+}
+.cart-train-target { position: absolute; left: 44%; width: 29%; top: 38%; height: 24%; }
 .cart-flight {
   position: fixed;
   z-index: 8;
@@ -216,7 +222,6 @@
   }
   .crossing-band:last-of-type { clip-path: polygon(0 11%, 100% 0, 100% 100%, 0 100%); }
   .crossing-art { height: clamp(124px, 40vw, 177px); }
-  .crossing-copy { max-width: 42%; transform: translateY(-24%); }
-  .crossing-copy strong { font-size: clamp(1.1rem, 5.1vw, 1.8rem); }
-  .crossing-buy { min-height: 41px; padding-inline: 7px; font-size: .71rem; }
+  .crossing-buy { min-height: 44px; }
+  .cart-train { left: 14px; }
 }

@@ -493,7 +493,7 @@ export async function createCrossing(host, canvas, context, anchors) {
       const scale = art.height * unit / 2.02
       const pouch = pouches[index]
 
-      pouch.position.set(x - direction * scale * (1 - rise) * .29, y - scale * (1 - rise) * .78, 0)
+      pouch.position.set(x - direction * scale * (1 - rise) * .29, y - direction * scale * (1 - rise) * 3.25, 0)
       pouch.scale.setScalar(scale * (.69 + rise * .31))
       pouch.rotation.set(.05 + (1 - rise) * .42, direction * (rise * .18 - (1 - rise) * .72), direction * (.58 - rise * .33))
       pouch.visible = rise > .025
@@ -502,7 +502,7 @@ export async function createCrossing(host, canvas, context, anchors) {
         const spread = rise * (grain + 2) / 7
         seed.position.set(
           x + direction * scale * (.19 + spread * .95),
-          y + scale * (.43 + spread * .79 + Math.sin(grain * 3.3) * .21),
+          y + scale * (.42 - spread * 1.53 + Math.sin(grain * 3.3) * .32),
           .06 + spread * .14,
         )
         seed.scale.setScalar(scale * (.055 + (grain % 3) * .016) * rise)

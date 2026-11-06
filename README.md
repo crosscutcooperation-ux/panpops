@@ -1,6 +1,6 @@
-# PanPops · The Flavour Turntable
+# PanPops · The Flavour Crossing
 
-A private, multi-page storefront prototype for PanPops roasted makhana. The four product worlds, home turntable and packing tray share one textured Three.js pouch design.
+A private homepage prototype for PanPops roasted makhana. Four colour strips share the original textured Three.js pouch models.
 
 ## Run locally
 
@@ -9,15 +9,8 @@ npm ci
 npm run dev
 ```
 
-`npm run build` builds the eight HTML pages and their assets into `dist/`. `npm run preview` serves that build locally.
+`npm run build` builds the homepage and assets into `dist/`. `npm run preview` serves that build locally.
 
-## Edit
+The strip reveal plays once per page load. Selecting a strip adds one pouch to the browser cart. The animated cart shows the existing contents before the new pouch lands. The navigation cart opens the same saved basket for review.
 
-- `src/catalog.js` holds the flavour copy, preview prices and studio colours.
-- `src/templates.js` and `src/style.css` define the page layouts and still-image views.
-- `src/scenes.js` defines the pouch geometry, turntable choreography, product props and tray.
-- `src/cart.js` handles the demo cart in browser storage.
-
-PanPops packaging images are sourced from the [current PanPops storefront](https://panvibesonline.com/). Manrope is distributed under its bundled OFL license.
-
-The order review uses demo prices and browser storage. The existing PHP catalogue, cart, delivery logic and Razorpay flow are production integration work.
+PanPops packaging images are sourced from the [current PanPops storefront](https://panvibesonline.com/). Bodoni Moda is distributed under its bundled OFL license.

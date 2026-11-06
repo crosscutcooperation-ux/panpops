@@ -1,16 +1,26 @@
-import { front } from './catalog.js'
-import { getCart } from './cart.js'
+import { front, products } from './catalog.js'
 
-const drawer = document.querySelector('[data-cart-arrival]')
-const target = drawer.querySelector('[data-arrival-target]')
-const landedPack = drawer.querySelector('[data-arrival-pack]')
-const count = drawer.querySelector('[data-arrival-count]')
-const name = drawer.querySelector('[data-arrival-name]')
-let flights = 0
-let closeTimer
+const train = document.querySelector('[data-cart-train]')
+const packs = train.querySelector('[data-train-packs]')
+const target = train.querySelector('[data-arrival-target]')
+let queue = Promise.resolve()
+
+function fillBasket(lines) {
+  const quantities = new Map()
+  for (const line of lines) {
+    for (const id of line.ids) quantities.set(id, (quantities.get(id) ?? 0) + line.quantity)
+  }
+  packs.innerHTML = products.filter(product => quantities.has(product.id)).map(product => {
+    const quantity = quantities.get(product.id)
+    return '<span><img src="' + front(product) + '" alt="">' + (quantity > 1 ? '<b>' + quantity + '</b>' : '') + '</span>'
+  }).join('')
+}
+
+function move(element, frames, duration, easing) {
+  return element.animate(frames, { duration, easing, fill: 'both' })
+}
 
 async function throwPouch(product, origin) {
-  await Promise.allSettled(drawer.getAnimations().map(animation => animation.finished))
   const end = target.getBoundingClientRect()
   const width = Math.max(46, Math.min(origin.width, 148))
   const height = width * 925 / 680
@@ -25,48 +35,46 @@ async function throwPouch(product, origin) {
   pouch.className = 'cart-flight'
   Object.assign(pouch.style, { width: width + 'px', left: left + 'px', top: top + 'px' })
   document.body.append(pouch)
-
   try {
-    await pouch.animate([
+    await move(pouch, [
       { transform: 'rotate(-12deg) scale(1)' },
-      { transform: 'translate(' + dx * .5 + 'px,' + (dy * .45 - 80) + 'px) rotate(20deg) scale(.82)', offset: .5 },
-      { transform: 'translate(' + dx + 'px,' + dy + 'px) rotate(-12deg) scale(.32)', opacity: .95 },
-    ], { duration: 590, easing: 'cubic-bezier(.32,.12,.44,1)', fill: 'forwards' }).finished
+      { transform: 'translate(' + dx * .48 + 'px,' + (dy * .46 - 94) + 'px) rotate(18deg) scale(.79)', offset: .48 },
+      { transform: 'translate(' + dx + 'px,' + dy + 'px) rotate(-12deg) scale(.37)' },
+    ], 620, 'cubic-bezier(.32,.12,.44,1)').finished
   } finally {
     pouch.remove()
   }
 }
 
-export async function playCartArrival(product, origin, reduceMotion) {
-  clearTimeout(closeTimer)
-  flights += 1
-  const start = origin.getBoundingClientRect()
-  drawer.dataset.open = ''
-  drawer.getBoundingClientRect()
-
+async function runArrival(product, origin, before, after, reduceMotion) {
+  train.hidden = false
   try {
-    if (!reduceMotion) await throwPouch(product, start)
-  } catch {
-    // Cart storage has already been updated, so still show the added item.
-  } finally {
-    landedPack.src = front(product)
-    landedPack.hidden = false
-    count.textContent = getCart().reduce((total, line) => total + line.quantity, 0)
-    name.textContent = product.name + ' added'
-    if (!reduceMotion) target.animate([
-      { transform: 'translateY(0)' }, { transform: 'translateY(8px)' }, { transform: 'translateY(0)' },
-    ], { duration: 245, easing: 'ease-out' })
+    if (reduceMotion) {
+      fillBasket(after)
+      await new Promise(resolve => setTimeout(resolve, 850))
+      return
+    }
 
-    flights -= 1
-    if (!flights) closeTimer = setTimeout(() => {
-      delete drawer.dataset.open
-    }, 800)
+    fillBasket(before)
+    const incoming = move(train, [{ transform: 'translateX(-105vw)' }, { transform: 'translateX(0)' }], 460, 'cubic-bezier(.18,.8,.27,1)')
+    await incoming.finished
+    incoming.cancel()
+    await throwPouch(product, origin)
+    fillBasket(after)
+    const landing = move(train, [
+      { transform: 'translateY(0)' }, { transform: 'translateY(7px)', offset: .25 }, { transform: 'translateY(0)' },
+    ], 470, 'ease-out')
+    await landing.finished
+    landing.cancel()
+    await move(train, [{ transform: 'translateX(0)' }, { transform: 'translateX(108vw)' }], 490, 'cubic-bezier(.55,.05,.8,.44)').finished
+  } finally {
+    train.hidden = true
+    train.getAnimations().forEach(animation => animation.cancel())
   }
 }
 
-drawer.addEventListener('transitionend', () => {
-  if (drawer.hasAttribute('data-open')) return
-  landedPack.hidden = true
-  name.textContent = ''
-  count.textContent = ''
-})
+export function playCartArrival(product, origin, before, after, reduceMotion) {
+  queue = queue.then(() => runArrival(product, origin, before, after, reduceMotion)).catch(() => {
+    // The cart was already saved when the pouch was selected.
+  })
+}
