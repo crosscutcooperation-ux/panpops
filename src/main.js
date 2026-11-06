@@ -76,50 +76,99 @@ function initCrossing(stage) {
   const bands = Array.from(stage.querySelectorAll('[data-crossing-add]'))
   const anchors = bands.map(band => band.querySelector('[data-crossing-art]'))
   const progress = bands.map(() => motion.matches ? 1 : 0)
+  const visible = new Set()
   const started = new Map()
+  let inSection = false
   let frame = 0
+
+  function poses() {
+    return progress.map(value => ({
+      rise: 1 - (1 - Math.min(1, value / .56)) ** 3,
+      burst: Math.max(0, (value - .38) / .62),
+    }))
+  }
+
   const getScene = mountScene(stage, async (scenes, ...args) => {
     const scene = await scenes.createCrossing(...args, anchors)
-    scene.pose(progress)
+    scene.pose(poses())
     return scene
   })
 
   function render() {
-    bands.forEach((band, index) => band.style.setProperty('--rise', progress[index]))
-    getScene()?.pose(progress)
+    const state = poses()
+    bands.forEach((band, index) => {
+      band.style.setProperty('--rise', state[index].rise)
+      band.style.setProperty('--burst', state[index].burst)
+    })
+    getScene()?.pose(state)
+  }
+
+  function reset(value) {
+    started.clear()
+    cancelAnimationFrame(frame)
+    frame = 0
+    progress.fill(value)
+    render()
   }
 
   function animate(now) {
     frame = 0
     for (const [index, start] of started) {
-      const fraction = Math.max(0, Math.min(1, (now - start) / 980))
-      progress[index] = 1 - (1 - fraction) ** 3
+      const fraction = Math.max(0, Math.min(1, (now - start) / 1160))
+      progress[index] = fraction
       if (fraction === 1) started.delete(index)
     }
     render()
     if (started.size) frame = requestAnimationFrame(animate)
   }
 
-  const observer = new IntersectionObserver(entries => {
+  function startVisible() {
+    if (!inSection || motion.matches) return
     const now = performance.now()
-    for (const entry of entries) {
-      if (!entry.isIntersecting || entry.intersectionRatio < .18) continue
-      observer.unobserve(entry.target)
-      const index = anchors.indexOf(entry.target)
-      started.set(index, now + index * 75)
+    for (const index of visible) {
+      if (progress[index] === 0 && !started.has(index)) started.set(index, now + index * 65)
     }
     if (started.size && !frame) frame = requestAnimationFrame(animate)
+  }
+
+  const artObserver = new IntersectionObserver(entries => {
+    for (const entry of entries) {
+      const index = anchors.indexOf(entry.target)
+      if (entry.isIntersecting && entry.intersectionRatio >= .18) visible.add(index)
+      else visible.delete(index)
+    }
+    startVisible()
   }, { threshold: .18 })
 
-  if (!motion.matches) anchors.forEach(anchor => observer.observe(anchor))
+  let sectionObserver
+  function observeSection() {
+    sectionObserver?.disconnect()
+    const inset = Math.round(innerHeight * .24)
+    sectionObserver = new IntersectionObserver(([entry]) => {
+      const wasInSection = inSection
+      inSection = entry.isIntersecting && entry.intersectionRatio >= .08
+      if (inSection) startVisible()
+      else if (wasInSection) reset(0)
+    }, { rootMargin: '0px 0px -' + inset + 'px 0px', threshold: .08 })
+    sectionObserver.observe(stage)
+  }
+
+  function observe() {
+    observeSection()
+    anchors.forEach(anchor => artObserver.observe(anchor))
+  }
+
+  if (!motion.matches) observe()
+  window.addEventListener('resize', () => {
+    if (!motion.matches) observeSection()
+  })
   motion.addEventListener('change', () => {
-    if (!motion.matches) return
-    observer.disconnect()
-    started.clear()
-    cancelAnimationFrame(frame)
-    frame = 0
-    progress.fill(1)
-    render()
+    sectionObserver?.disconnect()
+    artObserver.disconnect()
+    visible.clear()
+    inSection = false
+    reset(motion.matches ? 1 : 0)
+    if (!motion.matches) observe()
   })
 
   bands.forEach((band, index) => {

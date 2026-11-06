@@ -477,37 +477,49 @@ export async function createCrossing(host, canvas, context, anchors) {
     return seeds
   })
 
-  let current = anchors.map(() => 0)
-  function pose(progress = current) {
-    current = progress
+  const tilts = anchors.map(anchor =>
+    T.MathUtils.degToRad(parseFloat(getComputedStyle(anchor.parentElement).getPropertyValue('--tilt')))
+  )
+  const mouth = new T.Vector3()
+  let current = anchors.map(() => ({ rise: 0, burst: 0 }))
+
+  function pose(poses = current) {
+    current = poses
     const bounds = host.getBoundingClientRect()
     if (!bounds.width || !scene.width) return
     const unit = scene.width / bounds.width
 
     anchors.forEach((anchor, index) => {
       const art = anchor.getBoundingClientRect()
-      const rise = progress[index]
-      const direction = index % 2 === 0 ? 1 : -1
+      const { rise, burst } = poses[index]
+      const direction = index % 2 === 0 ? -1 : 1
       const x = (art.left + art.width / 2 - bounds.left - bounds.width / 2) * unit
       const y = (bounds.top + bounds.height / 2 - art.top - art.height / 2) * unit
       const scale = art.height * unit / 2.02
       const pouch = pouches[index]
+      const approach = (1 - rise) * scale
+      const roll = tilts[index] + (1 - rise) * .21
 
-      pouch.position.set(x - direction * scale * (1 - rise) * .29, y - direction * scale * (1 - rise) * 3.25, 0)
-      pouch.scale.setScalar(scale * (.69 + rise * .31))
-      pouch.rotation.set(.05 + (1 - rise) * .42, direction * (rise * .18 - (1 - rise) * .72), direction * (.58 - rise * .33))
+      pouch.position.set(x - direction * approach * 1.1, y - direction * approach * 2.7, 0)
+      pouch.scale.setScalar(scale * (.76 + rise * .24))
+      pouch.rotation.set(.08, direction * (.16 + (1 - rise) * .26), roll)
       pouch.visible = rise > .025
 
+      pouch.localToWorld(mouth.set(0, .99, .10))
+      const forwardX = -Math.sin(roll)
+      const forwardY = Math.cos(roll)
       trails[index].forEach((seed, grain) => {
-        const spread = rise * (grain + 2) / 7
+        const travel = ease(Math.max(0, (burst - grain * .045) / (1 - grain * .045)))
+        const length = travel * (.38 + grain * .21) * scale
+        const spread = Math.sin(grain * 3.9) * travel * .52 * scale
         seed.position.set(
-          x + direction * scale * (.19 + spread * .95),
-          y + scale * (.42 - spread * 1.53 + Math.sin(grain * 3.3) * .32),
-          .06 + spread * .14,
+          mouth.x + forwardX * length + forwardY * spread,
+          mouth.y + forwardY * length - forwardX * spread,
+          mouth.z + travel * (.06 + grain * .023),
         )
-        seed.scale.setScalar(scale * (.055 + (grain % 3) * .016) * rise)
-        seed.rotation.set(grain + rise * 1.5, grain * .7, rise * 2.3)
-        seed.visible = rise > .1
+        seed.scale.setScalar(scale * (.059 + (grain % 3) * .016) * Math.min(1, travel * 5))
+        seed.rotation.set(grain + travel * 2.6, grain * .7 + travel, travel * 3.2)
+        seed.visible = travel > .03
       })
     })
     scene.invalidate()

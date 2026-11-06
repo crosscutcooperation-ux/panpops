@@ -31,8 +31,9 @@
 }
 .crossing-band {
   --rise: 1;
-  --angle: 1;
-  --lean: 8.5%;
+  --burst: 1;
+  --slide: -1;
+  --lean: 11%;
   --top-start: calc(var(--start) + var(--lean));
   --top-end: calc(var(--end) + var(--lean));
   --bottom-start: calc(var(--start) - var(--lean));
@@ -62,20 +63,22 @@
 .crossing-chataka {
   --start: 0%; --end: 25%;
   --top-start: 0%; --bottom-start: 0%;
-  --art-x: 12.5%; --art-y: 42%; --copy-x: 2.8%; --copy-y: 73%;
+  --tilt: 134deg;
+  --art-x: 18%; --art-y: 23%; --copy-x: 4%; --copy-y: 77%;
 }
 .crossing-cream {
-  --start: 25%; --end: 50%; --angle: -1;
-  --art-x: 39%; --art-y: 35%; --copy-x: 27.4%; --copy-y: 64%;
+  --start: 25%; --end: 50%; --slide: 1; --tilt: -38deg;
+  --art-x: 31%; --art-y: 74%; --copy-x: 37%; --copy-y: 15%;
 }
 .crossing-peri {
   --start: 50%; --end: 75%;
-  --art-x: 62%; --art-y: 53%; --copy-x: 47.5%; --copy-y: 79%;
+  --tilt: 146deg;
+  --art-x: 68.5%; --art-y: 23%; --copy-x: 49%; --copy-y: 77%;
 }
 .crossing-salt {
-  --start: 75%; --end: 100%; --angle: -1;
+  --start: 75%; --end: 100%; --slide: 1; --tilt: -31deg;
   --top-end: 100%; --bottom-end: 100%;
-  --art-x: 87.5%; --art-y: 39%; --copy-x: 76.6%; --copy-y: 69%;
+  --art-x: 82%; --art-y: 74%; --copy-x: 86%; --copy-y: 15%;
 }
 .crossing-art {
   position: absolute;
@@ -104,29 +107,34 @@
   height: 100%;
   object-fit: contain;
   opacity: var(--rise);
-  transform: translateY(calc(var(--angle) * (1 - var(--rise)) * 161%))
-    rotate(calc(var(--angle) * (-30deg + var(--rise) * 15deg)))
-    scale(calc(.69 + var(--rise) * .31));
+  transform: translate(calc(-55% * var(--slide) * (1 - var(--rise))), calc(134% * var(--slide) * (1 - var(--rise))))
+    rotate(calc(-1 * var(--tilt) - 12deg * (1 - var(--rise))))
+    scale(calc(.76 + var(--rise) * .24));
+}
+.crossing-particles {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  transform: rotate(calc(-1 * var(--tilt)));
 }
 .crossing-particles i {
-  --grain-x: -22px; --grain-y: 21px; --grain-size: 12px;
+  --grain-x: -18px; --grain-y: 19px; --grain-size: 12px;
   position: absolute;
-  z-index: 1;
-  top: 46%;
+  top: 2%;
   left: 50%;
   width: var(--grain-size);
   aspect-ratio: 1.17;
   border-radius: 48% 38% 46% 38%;
   background: radial-gradient(circle at 30% 30%, #fff5d2, #dfb882 70%, #9d673c);
-  opacity: var(--rise);
+  opacity: var(--burst);
   box-shadow: 1px 2px 4px #471c1152;
-  transform: translate(calc(var(--angle) * var(--rise) * var(--grain-x)), calc(var(--rise) * var(--grain-y))) rotate(var(--grain-y));
+  transform: translate(calc(var(--burst) * var(--grain-x)), calc(-1 * var(--burst) * var(--grain-y))) rotate(var(--grain-y));
 }
-.crossing-particles i:nth-child(2) { --grain-x: 27px; --grain-y: 32px; --grain-size: 14px; }
-.crossing-particles i:nth-child(3) { --grain-x: 42px; --grain-y: 6px; --grain-size: 9px; }
-.crossing-particles i:nth-child(4) { --grain-x: 54px; --grain-y: 43px; --grain-size: 11px; }
-.crossing-particles i:nth-child(5) { --grain-x: 68px; --grain-y: 29px; --grain-size: 8px; }
-.crossing-particles i:nth-child(6) { --grain-x: 76px; --grain-y: 56px; --grain-size: 9px; }
+.crossing-particles i:nth-child(2) { --grain-x: 12px; --grain-y: 33px; --grain-size: 14px; }
+.crossing-particles i:nth-child(3) { --grain-x: -22px; --grain-y: 44px; --grain-size: 9px; }
+.crossing-particles i:nth-child(4) { --grain-x: 20px; --grain-y: 55px; --grain-size: 11px; }
+.crossing-particles i:nth-child(5) { --grain-x: -5px; --grain-y: 69px; --grain-size: 8px; }
+.crossing-particles i:nth-child(6) { --grain-x: -20px; --grain-y: 86px; --grain-size: 9px; }
 .crossing-stage[data-ready] .crossing-pack,
 .crossing-stage[data-ready] .crossing-particles { visibility: hidden; }
 .scene-host {
@@ -167,16 +175,24 @@
   width: clamp(245px, 35vw, 510px);
   aspect-ratio: 310 / 186;
   pointer-events: none;
-  color: #fff4d9;
-  filter: drop-shadow(0 3px 1px #50230c) drop-shadow(0 9px 16px #26120d90);
+  filter: drop-shadow(0 3px 1px #1c1512b0) drop-shadow(0 9px 14px #26120d80);
+}
+.cart-train::before {
+  content: '';
+  position: absolute;
+  inset: auto 10% 0 21%;
+  height: 9%;
+  border-radius: 50%;
+  background: #20191465;
+  filter: blur(8px);
 }
 .cart-train > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .cart-train-packs {
   position: absolute;
-  left: 27%;
-  right: 12%;
-  bottom: 33%;
-  height: 47%;
+  left: 31%;
+  right: 15%;
+  bottom: 29%;
+  height: 42%;
   display: flex;
   justify-content: center;
   gap: 1%;
@@ -197,7 +213,7 @@
   color: #fff7e3;
   font-size: .8rem;
 }
-.cart-train-target { position: absolute; left: 44%; width: 29%; top: 38%; height: 24%; }
+.cart-train-target { position: absolute; left: 44%; width: 29%; top: 40%; height: 23%; }
 .cart-flight {
   position: fixed;
   z-index: 8;
@@ -209,13 +225,13 @@
   .crossing-heading { min-height: 88px; align-items: start; justify-content: center; flex-direction: column; gap: 4px; }
   .crossing-stage { height: auto; display: grid; }
   .crossing-band {
-    --art-x: 72%; --art-y: 51%; --copy-x: 7%; --copy-y: 47%;
+    --art-x: 72%; --art-y: 38%; --copy-x: 7%; --copy-y: 58%;
     position: relative;
     height: 265px;
     margin-top: -29px;
     clip-path: polygon(0 11%, 100% 0, 100% 89%, 0 100%);
   }
-  .crossing-band:nth-child(even) { --art-x: 28%; --copy-x: 53%; }
+  .crossing-band:nth-child(even) { --art-x: 28%; --art-y: 62%; --copy-x: 53%; --copy-y: 27%; }
   .crossing-band:first-child {
     margin-top: 0;
     clip-path: polygon(0 0, 100% 0, 100% 89%, 0 100%);
