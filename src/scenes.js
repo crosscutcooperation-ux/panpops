@@ -461,3 +461,59 @@ export async function createTray(host, canvas, context) {
   })
   return { setContents, dispose: scene.dispose }
 }
+
+export async function createCrossing(host, canvas, context, anchors) {
+  const pouches = await Promise.all(products.map(pack))
+  const scene = studio(host, canvas, context, { height: 3.6, minWidth: 1, cameraY: 0 })
+  const shape = seedGeometry()
+  const materials = seedMaterials()
+  const trails = pouches.map((pouch, index) => {
+    const seeds = Array.from({ length: 6 }, (_, grain) => {
+      const mesh = new T.Mesh(shape, materials[(index + grain) % materials.length])
+      scene.world.add(mesh)
+      return mesh
+    })
+    scene.world.add(pouch)
+    return seeds
+  })
+
+  let current = anchors.map(() => 0)
+  function pose(progress = current) {
+    current = progress
+    const bounds = host.getBoundingClientRect()
+    if (!bounds.width || !scene.width) return
+    const unit = scene.width / bounds.width
+
+    anchors.forEach((anchor, index) => {
+      const art = anchor.getBoundingClientRect()
+      const rise = progress[index]
+      const direction = index % 2 === 0 ? 1 : -1
+      const x = (art.left + art.width / 2 - bounds.left - bounds.width / 2) * unit
+      const y = (bounds.top + bounds.height / 2 - art.top - art.height / 2) * unit
+      const scale = art.height * unit / 2.02
+      const pouch = pouches[index]
+
+      pouch.position.set(x - direction * scale * (1 - rise) * .29, y - scale * (1 - rise) * .78, 0)
+      pouch.scale.setScalar(scale * (.69 + rise * .31))
+      pouch.rotation.set(.05 + (1 - rise) * .42, direction * (rise * .18 - (1 - rise) * .72), direction * (.58 - rise * .33))
+      pouch.visible = rise > .025
+
+      trails[index].forEach((seed, grain) => {
+        const spread = rise * (grain + 2) / 7
+        seed.position.set(
+          x + direction * scale * (.19 + spread * .95),
+          y + scale * (.43 + spread * .79 + Math.sin(grain * 3.3) * .21),
+          .06 + spread * .14,
+        )
+        seed.scale.setScalar(scale * (.055 + (grain % 3) * .016) * rise)
+        seed.rotation.set(grain + rise * 1.5, grain * .7, rise * 2.3)
+        seed.visible = rise > .1
+      })
+    })
+    scene.invalidate()
+  }
+
+  scene.onResize(() => pose())
+  pose()
+  return { pose, dispose: scene.dispose }
+}

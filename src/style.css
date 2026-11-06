@@ -1,3 +1,5 @@
+@import './crossing.css';
+
 @font-face{font-family:Manrope;src:url('/media/manrope.woff2') format('woff2');font-style:normal;font-weight:400 800;font-display:swap}
 :root{--paper:#f8f4eb;--surface:#fffaf1;--ink:#251b17;--muted:#64554d;--line:#e4d9ca;--accent:#923b2c;--stage:#573127;--light:#aa6349;--radius:22px;--mono:ui-monospace,SFMono-Regular,Consolas,monospace;--gutter:clamp(18px,4.3vw,64px);color:var(--ink);background:var(--paper);font:500 16px/1.55 Manrope,system-ui,sans-serif}
 *,*::before,*::after{box-sizing:border-box}

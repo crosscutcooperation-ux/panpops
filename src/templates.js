@@ -5,6 +5,7 @@ const paths = {
   left: 'm15 5-7 7 7 7',
   right: 'm9 5 7 7-7 7',
   bag: 'M5 8h14l1 13H4L5 8Zm4 2V6a3 3 0 0 1 6 0v4',
+  cart: 'M2 3h3l3 13h11l3-9H6m3 13h.01m9 0h.01',
   plus: 'M12 5v14M5 12h14',
   minus: 'M5 12h14',
   spin: 'M20 11a8 8 0 1 0-2 6m2-11v5h-5',
@@ -44,6 +45,14 @@ function footer() {
         <nav aria-label="Footer"><a href="/shop/">Shop</a><a href="/build-a-box/">Build a box</a><a href="/cart/">Cart</a></nav>
       </div>
     </footer>
+    <aside class="cart-arrival" data-cart-arrival aria-hidden="true">
+      <div class="cart-arrival-heading"><span>PanPops cart</span><strong data-arrival-count></strong></div>
+      <div class="cart-arrival-target" data-arrival-target>
+        <img data-arrival-pack alt="" hidden>
+        ${icon('cart')}
+      </div>
+      <p data-arrival-name></p>
+    </aside>
     <div class="toast" role="status" aria-live="polite"></div>`
 }
 
@@ -66,54 +75,30 @@ function cards() {
 }
 
 function home() {
-  const active = products[0]
   return `
-    <section class="shell hero" data-carousel style="${productStyle(active)}">
-      <div class="hero-copy">
-        ${eyebrow('THE FLAVOUR STUDIO')}
-        <h1>Pick your <br><em>crunch.</em></h1>
-        <p class="hero-description">Four flavours of roasted makhana. Find the one you’re craving.</p>
-      </div>
-      <div class="hero-interaction">
-        <div class="stage hero-stage" data-stage data-swipe>
-          <div class="stage-id"><span></span> PANPOPS STUDIO</div>
-          <div class="stage-rings" aria-hidden="true"></div>
-          <div class="stage-floor" aria-hidden="true"></div>
-          <div class="carousel-stills" aria-hidden="true">
-            ${products.map((product, index) => packImage(product, 'carousel-pack ' + ['center','next','parked','prev'][index])).join('')}
-          </div>
-          <div class="scene-host" data-scene aria-hidden="true"></div>
-          <div class="stage-controls">
-            <button type="button" class="icon-button stage-button" data-step="-1" aria-label="Previous flavour">${icon('left')}</button>
-            <span data-stage-counter>01 / 04</span>
-            <button type="button" class="icon-button stage-button" data-step="1" aria-label="Next flavour">${icon('right')}</button>
-          </div>
-          <span class="stage-hint">${icon('spin')} SWIPE TO EXPLORE</span>
-        </div>
-        <div class="flavour-rail" aria-label="Choose a flavour">
-          ${products.map((product, index) => `
-            <button class="flavour-tab" type="button" data-pick="${index}" aria-label="${product.name}" aria-pressed="${index === 0}" style="${productStyle(product)}">
-              ${packImage(product)}<span>${product.name}</span>
-            </button>`).join('')}
-        </div>
-      </div>
-      <div class="hero-selection">
-        <div class="active-flavour" id="active-flavour" aria-live="polite">
-          <span class="flavour-index" data-current-index>01</span>
-          <div><h2 data-active-name>${active.name}</h2><p data-active-note>${active.note}</p></div>
-        </div>
-        <a class="button hero-action" data-active-link href="${productUrl(active)}">Explore flavour ${icon('arrow')}</a>
-      </div>
+    <section class="hero-placeholder" aria-label="PanPops roasted makhana">
+      <img src="${front(products[0])}" width="680" height="925" alt="PanPops Chataka Pataka roasted makhana pouch" fetchpriority="high">
     </section>
-    <section class="lineup" aria-labelledby="lineup-heading">
-      <div class="shell">
-        <div class="section-heading">${eyebrow('THE LINEUP')}<h2 id="lineup-heading">Find your flavour.</h2></div>
-        <div class="pack-grid">${cards()}</div>
+    <section class="flavour-crossing" aria-labelledby="crossing-heading">
+      <div class="crossing-heading shell">
+        <h1 id="crossing-heading">Pick your crunch.</h1>
+        <p>Tap a flavour to add a pouch.</p>
       </div>
-    </section>
-    <section class="shell home-box">
-      <div>${eyebrow('MIX & MATCH')}<h2>Make it your mix.</h2><p>Pick two to four pouches and pack a box with your favourites.</p>${link('/build-a-box/', 'Build a box')}</div>
-      <div class="home-box-art" aria-hidden="true">${products.map(product => packImage(product, '', true)).join('')}</div>
+      <div class="crossing-stage" data-crossing data-stage>
+        ${products.map((product, index) => `
+          <button class="crossing-band crossing-${product.id}" type="button" data-crossing-add="${product.id}" style="${productStyle(product)}" aria-label="Add ${product.name} to cart, ${money(product.price)}">
+            <span class="crossing-art" data-crossing-art aria-hidden="true">
+              <span class="crossing-particles">${'<i></i>'.repeat(6)}</span>
+              ${packImage(product, 'crossing-pack')}
+            </span>
+            <span class="crossing-copy">
+              <span class="crossing-number">0${index + 1} / ${product.weight} G</span>
+              <strong>${product.name}</strong>
+              <span class="crossing-buy">Add to cart <span aria-hidden="true">·</span> ${money(product.price)} ${icon('plus')}</span>
+            </span>
+          </button>`).join('')}
+        <div class="scene-host crossing-scene" data-scene aria-hidden="true"></div>
+      </div>
     </section>`
 }
 

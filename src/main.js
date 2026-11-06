@@ -1,5 +1,6 @@
-import { products, productById, productUrl, front, money, MIN_BOX, MAX_BOX } from './catalog.js'
-import { icon, productStyle } from './templates.js'
+import { productById, front, money, MIN_BOX, MAX_BOX } from './catalog.js'
+import { icon } from './templates.js'
+import { playCartArrival } from './cart-arrival.js'
 import { getCart, addLine, changeQuantity, removeLine, boxDescription, packSubtotal, lineSubtotal, MAX_QUANTITY } from './cart.js'
 
 const motion = matchMedia('(prefers-reduced-motion: reduce)')
@@ -13,13 +14,14 @@ function notify(message) {
   toastTimer = setTimeout(() => toast.classList.remove('visible'), 3300)
 }
 
-function addToCart(type, ids, quantity = 1) {
+function addToCart(type, ids, quantity = 1, origin) {
   const result = addLine(type, ids, quantity)
   const name = type === 'box' ? 'Custom box' : productById[ids[0]].name
   if (result.added === 0) notify('Your cart has reached the limit for this item.')
   else if (!result.persisted) notify(name + ' added for this page. Browser storage is unavailable.')
   else if (result.added < quantity) notify('Added ' + result.added + '. Your cart has reached the limit for this item.')
   else notify(name + (result.added > 1 ? ' × ' + result.added : '') + ' added to cart.')
+  if (origin && result.added > 0) playCartArrival(productById[ids[0]], origin, motion.matches)
   return result.added > 0
 }
 
@@ -99,58 +101,41 @@ function bindDrag(element, { start, move, end }) {
   element.addEventListener('pointercancel', () => { drag = undefined })
 }
 
-function initCarousel(root) {
-  const stage = root.querySelector('[data-stage]')
-  const stills = Array.from(root.querySelectorAll('.carousel-pack'))
-  const tabs = Array.from(root.querySelectorAll('[data-pick]'))
-  const index = root.querySelector('[data-current-index]')
-  const counter = root.querySelector('[data-stage-counter]')
-  const name = root.querySelector('[data-active-name]')
-  const note = root.querySelector('[data-active-note]')
-  const link = root.querySelector('[data-active-link]')
-  let active = 0
+function initCrossing(stage) {
+  const bands = Array.from(stage.querySelectorAll('[data-crossing-add]'))
+  const anchors = bands.map(band => band.querySelector('[data-crossing-art]'))
   const getScene = mountScene(stage, async (scenes, ...args) => {
-    const scene = await scenes.createTurntable(...args)
-    scene.select(active, 1, true)
+    const scene = await scenes.createCrossing(...args, anchors)
+    update(scene)
     return scene
   })
+  let frame = 0
 
-  function select(next, direction) {
-    const target = (next + products.length) % products.length
-    if (target === active) return
-    const delta = (target - active + products.length) % products.length
-    active = target
-    const product = products[active]
-    root.style.cssText = productStyle(product)
-    index.textContent = '0' + (active + 1)
-    counter.textContent = index.textContent + ' / 04'
-    name.textContent = product.name
-    note.textContent = product.note
-    link.href = productUrl(product)
-    tabs.forEach((tab, i) => tab.setAttribute('aria-pressed', String(i === active)))
-    stills.forEach((image, i) => {
-      image.className = 'carousel-pack ' + ['center','next','parked','prev'][(i - active + products.length) % products.length]
+  function update(scene = getScene()) {
+    const progress = anchors.map(anchor => {
+      const entry = (innerHeight * .96 - anchor.getBoundingClientRect().top) / (innerHeight * .34)
+      const value = motion.matches ? 1 : Math.max(0, Math.min(1, entry))
+      return 1 - (1 - value) ** 2
     })
-    getScene()?.select(active, direction ?? (delta === 3 ? -1 : 1))
+    bands.forEach((band, index) => band.style.setProperty('--rise', progress[index]))
+    scene?.pose(progress)
   }
 
-  root.querySelectorAll('[data-step]').forEach(button => {
-    button.addEventListener('click', () => select(active + Number(button.dataset.step), Number(button.dataset.step)))
-  })
-  tabs.forEach(tab => tab.addEventListener('click', () => select(Number(tab.dataset.pick))))
-  root.addEventListener('keydown', event => {
-    if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return
-    event.preventDefault()
-    const direction = event.key === 'ArrowRight' ? 1 : -1
-    select(active + direction, direction)
-    if (event.target.closest('[data-pick]')) tabs[active].focus()
-  })
-  bindDrag(stage, { end(dx, dy) {
-    if (Math.abs(dx) > 34 && Math.abs(dx) > Math.abs(dy)) {
-      const direction = dx < 0 ? 1 : -1
-      select(active + direction, direction)
-    }
-  } })
+  function schedule() {
+    if (frame) return
+    frame = requestAnimationFrame(() => {
+      frame = 0
+      update()
+    })
+  }
+
+  window.addEventListener('scroll', schedule, { passive: true })
+  window.addEventListener('resize', schedule)
+  motion.addEventListener('change', schedule)
+  bands.forEach((band, index) => band.addEventListener('click', () => {
+    addToCart('pack', [band.dataset.crossingAdd], 1, anchors[index])
+  }))
+  update()
 }
 
 function initProduct(root) {
@@ -180,7 +165,7 @@ function initProduct(root) {
 
   decrease.addEventListener('click', () => change(-1))
   increase.addEventListener('click', () => change(1))
-  add.addEventListener('click', () => addToCart('pack', [product.id], quantity))
+  add.addEventListener('click', () => addToCart('pack', [product.id], quantity, stage.querySelector('.product-front').hidden ? stage : stage.querySelector('.product-front')))
   flip.addEventListener('click', () => {
     reversed = !reversed
     flip.setAttribute('aria-expanded', String(reversed))
@@ -320,8 +305,8 @@ function initCart(view) {
   render()
 }
 
-const carousel = document.querySelector('[data-carousel]')
-if (carousel) initCarousel(carousel)
+const crossing = document.querySelector('[data-crossing]')
+if (crossing) initCrossing(crossing)
 const product = document.querySelector('[data-product]')
 if (product) initProduct(product)
 const box = document.querySelector('[data-box]')
@@ -330,7 +315,7 @@ const cartView = document.querySelector('[data-cart-view]')
 if (cartView) initCart(cartView)
 
 document.querySelectorAll('.pack-card [data-add]').forEach(button => {
-  button.addEventListener('click', () => addToCart('pack', [button.dataset.add]))
+  button.addEventListener('click', () => addToCart('pack', [button.dataset.add], 1, button.closest('.pack-card').querySelector('.pack-card-art img')))
 })
 window.addEventListener('panpops-cart', updateCartBadge)
 window.addEventListener('pageshow', updateCartBadge)
