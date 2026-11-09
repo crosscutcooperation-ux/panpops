@@ -1,4 +1,4 @@
-import { front, products } from './catalog.js'
+import { front, back, products } from './catalog.js'
 
 export const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)')
 
@@ -28,12 +28,12 @@ export async function animateElement(element, frames, options) {
 
 export function enterTrolley(trolley) {
   return animateElement(trolley, [
-    { transform: 'translateX(-105vw)' },
-    { transform: 'translateX(0)' },
+    { transform: 'translateY(110vh)' },
+    { transform: 'translateY(0)' },
   ], { duration: 650, easing: 'cubic-bezier(.18,.8,.27,1)' })
 }
 
-export async function flyPouch(product, start, end, delay = 0) {
+export async function flyPouch(product, start, end, delay = 0, face = 'front') {
   if (reducedMotion.matches) return
   const width = Math.min(136, Math.max(45, end.width))
   const height = width * 925 / 680
@@ -42,7 +42,7 @@ export async function flyPouch(product, start, end, delay = 0) {
   const dx = end.left + end.width / 2 - startX - width / 2
   const dy = end.top + end.height / 2 - startY - height / 2
   const image = new Image()
-  image.src = front(product)
+  image.src = face === 'back' ? back(product) : front(product)
   image.alt = ''
   image.className = 'cart-flight'
   Object.assign(image.style, { left: startX + 'px', top: startY + 'px', width: width + 'px', opacity: '0' })

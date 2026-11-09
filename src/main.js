@@ -1,3 +1,5 @@
+import { initAdminPage } from './admin.js'
+import { loadCatalogue } from './api.js'
 import { productById } from './catalog.js'
 import { playCartArrival } from './cart-arrival.js'
 import { getCart, addLine } from './cart.js'
@@ -17,6 +19,10 @@ function notify(message) {
 }
 
 function addToCart(product, origin) {
+  if (product.active === false) {
+    notify('This flavour is currently unavailable.')
+    return
+  }
   const before = getCart()
   const result = addLine('pack', [product.id])
   if (!result.added) {
@@ -183,13 +189,20 @@ function initCrossing(stage) {
 document.querySelectorAll('[data-future-page]').forEach(button => {
   button.addEventListener('click', () => notify(button.textContent + ' is coming soon.'))
 })
-const crossing = document.querySelector('[data-crossing]')
-if (crossing) initCrossing(crossing)
-const cartPage = document.querySelector('[data-cart-page]')
-if (cartPage) initCartPage(cartPage, notify)
-const checkout = document.querySelector('[data-checkout-page]')
-if (checkout) initCheckoutPage(checkout)
-if (document.querySelector('[data-account-form]')) initAccountPage(notify)
+async function startStore() {
+  try { await loadCatalogue() }
+  catch (error) { notify('Live prices are unavailable. ' + error.message) }
+  const admin = document.querySelector('[data-admin-page]')
+  if (admin) initAdminPage(admin)
+  const crossing = document.querySelector('[data-crossing]')
+  if (crossing) initCrossing(crossing)
+  const cartPage = document.querySelector('[data-cart-page]')
+  if (cartPage) initCartPage(cartPage, notify)
+  const checkout = document.querySelector('[data-checkout-page]')
+  if (checkout) initCheckoutPage(checkout)
+  if (document.querySelector('[data-account-form]')) initAccountPage(notify)
+}
+startStore()
 
 function updateCartCount() {
   const count = getCart().reduce((total, line) => total + line.quantity, 0)

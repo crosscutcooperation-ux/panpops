@@ -7,11 +7,13 @@ const routes = {
   '/cart/index.html': ['cart', 'Your cart'],
   '/checkout/index.html': ['checkout', 'Checkout'],
   '/login/index.html': ['login', 'Login'],
+  '/admin/index.html': ['admin', 'Prices & orders'],
   '/register/index.html': ['register', 'Create an account'],
 }
 
 export default defineConfig({
   appType: 'mpa',
+  server: { proxy: { '/api': 'http://127.0.0.1:3001' } },
   input: Object.keys(routes).map(path => resolve(import.meta.dirname, '.' + path)),
   plugins: [{
     name: 'panpops-page-template',

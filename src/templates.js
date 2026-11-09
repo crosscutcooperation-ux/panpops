@@ -2,7 +2,7 @@ import { products, front } from './catalog.js'
 
 import { icon } from './icons.js'
 import { renderTrolley } from './trolley.js'
-import { cartPage, checkoutPage, accountPage } from './commerce-templates.js'
+import { cartPage, checkoutPage, accountPage, adminPage } from './commerce-templates.js'
 
 export { icon } from './icons.js'
 const logo = '<img src="/media/logo.png" width="353" height="104" alt="PanVibes PanPops">'
@@ -56,6 +56,7 @@ export function renderPage(page = 'home') {
   const pages = {
     home,
     cart: cartPage,
+    admin: adminPage,
     checkout: checkoutPage,
     login: () => accountPage('login'),
     register: () => accountPage('register'),

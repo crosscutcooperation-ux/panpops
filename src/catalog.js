@@ -6,7 +6,7 @@ export const products = [
 ].map(product => ({ ...product, price: 180, weight: 50 }))
 
 export const productById = Object.fromEntries(products.map(product => [product.id, product]))
-export const money = amount => '₹' + amount.toLocaleString('en-IN')
+export const money = amount => '₹' + amount.toLocaleString('en-IN', { maximumFractionDigits: 2 })
 export const productUrl = product => '/shop/' + product.slug + '/'
 export const front = product => '/media/' + product.id + '.webp'
 export const back = product => '/media/' + product.id + '-back.webp'
