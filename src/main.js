@@ -1,7 +1,9 @@
-import { productById, front, money } from './catalog.js'
-import { icon } from './templates.js'
+import { productById } from './catalog.js'
 import { playCartArrival } from './cart-arrival.js'
-import { getCart, addLine, changeQuantity, removeLine, boxDescription, lineSubtotal, MAX_QUANTITY } from './cart.js'
+import { getCart, addLine } from './cart.js'
+import { initCartPage } from './cart-page.js'
+import { initCheckoutPage } from './checkout.js'
+import { initAccountPage } from './account.js'
 
 const motion = matchMedia('(prefers-reduced-motion: reduce)')
 const toast = document.querySelector('.toast')
@@ -178,71 +180,22 @@ function initCrossing(stage) {
   render()
 }
 
-function initCart() {
-  const trigger = document.querySelector('[data-open-cart]')
-  const badge = trigger.querySelector('[data-cart-count]')
-  const dialog = document.querySelector('[data-cart-dialog]')
-  const view = dialog.querySelector('[data-cart-view]')
-  trigger.addEventListener('click', () => dialog.showModal())
-
-  function render() {
-    const lines = getCart()
-    const count = lines.reduce((total, line) => total + line.quantity, 0)
-    badge.textContent = count
-    trigger.setAttribute('aria-label', 'Cart, ' + count + (count === 1 ? ' item' : ' items'))
-
-    const focused = document.activeElement?.closest('[data-cart-action]')
-    if (!lines.length) {
-      view.innerHTML = '<p class="cart-empty">Your cart is empty.</p>'
-      if (focused) dialog.querySelector('[aria-label="Close cart"]').focus()
-      return
-    }
-
-    const rows = lines.map(line => {
-      const product = productById[line.ids[0]]
-      const name = line.type === 'box' ? 'Custom box' : product.name
-      return `
-        <li class="cart-row">
-          <div class="cart-row-art">${line.ids.map(id => '<img src="' + front(productById[id]) + '" alt="">').join('')}</div>
-          <div class="cart-row-info">
-            <h3>${name}</h3>
-            ${line.type === 'box' ? '<p>' + boxDescription(line.ids) + '</p>' : ''}
-            <div class="cart-quantity">
-              <button type="button" data-cart-action="decrease" data-key="${line.key}" aria-label="Decrease ${name} quantity">${icon('minus')}</button>
-              <span>${line.quantity}</span>
-              <button type="button" data-cart-action="increase" data-key="${line.key}" aria-label="Increase ${name} quantity"${line.quantity >= MAX_QUANTITY ? ' disabled' : ''}>${icon('plus')}</button>
-            </div>
-          </div>
-          <div class="cart-row-total">
-            <strong>${money(lineSubtotal(line))}</strong>
-            <button type="button" data-cart-action="remove" data-key="${line.key}" aria-label="Remove ${name}">Remove</button>
-          </div>
-        </li>`
-    }).join('')
-    const total = lines.reduce((sum, line) => sum + lineSubtotal(line), 0)
-    view.innerHTML = '<ul class="cart-list">' + rows + '</ul><div class="cart-subtotal"><span>Subtotal</span><strong>' + money(total) + '</strong></div>'
-
-    if (focused) {
-      const controls = [...view.querySelectorAll('[data-cart-action]:not(:disabled)')]
-      const replacement = controls.find(button => button.dataset.key === focused.dataset.key && button.dataset.cartAction === focused.dataset.cartAction)
-      const nextFocus = replacement ?? controls[0]
-      nextFocus?.focus()
-    }
-  }
-
-  view.addEventListener('click', event => {
-    const button = event.target.closest('[data-cart-action]')
-    if (!button) return
-    const { cartAction, key } = button.dataset
-    if (cartAction === 'remove') removeLine(key)
-    else changeQuantity(key, cartAction === 'increase' ? 1 : -1)
-  })
-  window.addEventListener('panpops-cart', render)
-  render()
-}
-
 document.querySelectorAll('[data-future-page]').forEach(button => {
   button.addEventListener('click', () => notify(button.textContent + ' is coming soon.'))
 })
-initCrossing(document.querySelector('[data-crossing]'))
-initCart()
+const crossing = document.querySelector('[data-crossing]')
+if (crossing) initCrossing(crossing)
+const cartPage = document.querySelector('[data-cart-page]')
+if (cartPage) initCartPage(cartPage, notify)
+const checkout = document.querySelector('[data-checkout-page]')
+if (checkout) initCheckoutPage(checkout)
+if (document.querySelector('[data-account-form]')) initAccountPage(notify)
+
+function updateCartCount() {
+  const count = getCart().reduce((total, line) => total + line.quantity, 0)
+  document.querySelector('[data-cart-count]').textContent = count
+  document.querySelector('[data-cart-link]').setAttribute('aria-label', 'Cart, ' + count + (count === 1 ? ' item' : ' items'))
+}
+window.addEventListener('panpops-cart', updateCartCount)
+window.addEventListener('pageshow', updateCartCount)
+updateCartCount()

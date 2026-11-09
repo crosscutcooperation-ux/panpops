@@ -84,6 +84,10 @@ export function changeQuantity(key, delta) {
   }))
 }
 
+export function clearCart() {
+  update([])
+}
+
 export function removeLine(key) {
   update(cart.filter(line => line.key !== key))
 }

@@ -1,20 +1,10 @@
-import { front, products } from './catalog.js'
+import { front } from './catalog.js'
+import { fillTrolley } from './trolley-motion.js'
 
 const train = document.querySelector('[data-cart-train]')
 const packs = train.querySelector('[data-train-packs]')
 const target = train.querySelector('[data-arrival-target]')
 let queue = Promise.resolve()
-
-function fillBasket(lines) {
-  const quantities = new Map()
-  for (const line of lines) {
-    for (const id of line.ids) quantities.set(id, (quantities.get(id) ?? 0) + line.quantity)
-  }
-  packs.innerHTML = products.filter(product => quantities.has(product.id)).map(product => {
-    const quantity = quantities.get(product.id)
-    return '<span><img src="' + front(product) + '" alt="">' + (quantity > 1 ? '<b>' + quantity + '</b>' : '') + '</span>'
-  }).join('')
-}
 
 function move(element, frames, duration, easing) {
   return element.animate(frames, { duration, easing, fill: 'both' })
@@ -50,17 +40,17 @@ async function runArrival(product, origin, before, after, reduceMotion) {
   train.hidden = false
   try {
     if (reduceMotion) {
-      fillBasket(after)
+      fillTrolley(train, after)
       await new Promise(resolve => setTimeout(resolve, 850))
       return
     }
 
-    fillBasket(before)
+    fillTrolley(train, before)
     const incoming = move(train, [{ transform: 'translateX(-105vw)' }, { transform: 'translateX(0)' }], 460, 'cubic-bezier(.18,.8,.27,1)')
     await incoming.finished
     incoming.cancel()
     await throwPouch(product, origin)
-    fillBasket(after)
+    fillTrolley(train, after)
     const landing = move(train, [
       { transform: 'translateY(0)' }, { transform: 'translateY(7px)', offset: .25 }, { transform: 'translateY(0)' },
     ], 470, 'ease-out')
