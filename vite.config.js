@@ -1,6 +1,7 @@
 import { resolve } from 'node:path'
 import { defineConfig } from 'vite'
 import { renderPage } from './src/templates.js'
+import { products } from './src/catalog.js'
 
 const routes = {
   '/index.html': ['home', 'Pick your crunch'],
@@ -9,6 +10,9 @@ const routes = {
   '/login/index.html': ['login', 'Login'],
   '/admin/index.html': ['admin', 'Prices & orders'],
   '/register/index.html': ['register', 'Create an account'],
+  '/shop/index.html': ['shop', 'Our products'],
+  '/build-a-box/index.html': ['box', 'Build a box'],
+  ...Object.fromEntries(products.map(product => ['/shop/' + product.slug + '/index.html', ['product', product.name, product]])),
 }
 
 export default defineConfig({
@@ -21,8 +25,8 @@ export default defineConfig({
       order: 'pre',
       handler(html, context) {
         const path = context.filename.slice(import.meta.dirname.length)
-        const [page, title] = routes[path] ?? routes['/index.html']
-        return html.replace('<!-- CONTENT -->', () => renderPage(page))
+        const [page, title, product] = routes[path] ?? routes['/index.html']
+        return html.replace('<!-- CONTENT -->', () => renderPage(page, product))
           .replace('<title>Pick your crunch · PanPops</title>', '<title>' + title + ' · PanPops</title>')
           .replace('<body>', '<body data-page="' + page + '">')
       },

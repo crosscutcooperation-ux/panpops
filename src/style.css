@@ -1,11 +1,19 @@
 @import './crossing.css';
 @import './commerce.css';
+@import './catalog-pages.css';
 
 @font-face {
-  font-family: 'Bodoni Moda';
-  src: url('/media/bodoni-moda.woff2') format('woff2');
+  font-family: Montserrat;
+  src: url('/media/montserrat-bold.woff2') format('woff2');
   font-style: normal;
-  font-weight: 500 900;
+  font-weight: 800;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Space Mono';
+  src: url('/media/space-mono-bold.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 700;
   font-display: swap;
 }
 :root {
@@ -18,7 +26,8 @@
   --gutter: clamp(18px, 4.3vw, 64px);
   color: var(--ink);
   background: var(--paper);
-  font: 650 16px/1.5 'Bodoni Moda', Georgia, serif;
+  --mono: 'Space Mono', ui-monospace, monospace;
+  font: 500 16px/1.55 Manrope, system-ui, sans-serif;
 }
 *, *::before, *::after { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; }
@@ -31,7 +40,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outlin
 img { display: block; max-width: 100%; height: auto; }
 svg { width: 20px; height: 20px; flex: none; }
 h1, h2, h3, p { margin: 0; }
-h1, h2, h3 { line-height: 1.06; }
+h1, h2, h3 { font-family: Montserrat, Manrope, sans-serif; line-height: 1.08; }
 h1, h2 { font-weight: 850; letter-spacing: -.045em; }
 .shell { width: min(calc(100% - var(--gutter) * 2), 1328px); margin-inline: auto; }
 
@@ -69,7 +78,7 @@ h1, h2 { font-weight: 850; letter-spacing: -.045em; }
   padding: 0;
   border: 0;
   background: transparent;
-  font-size: .99rem;
+  font-size: .86rem;
   font-weight: 800;
   white-space: nowrap;
 }
@@ -114,7 +123,9 @@ h1, h2 { font-weight: 850; letter-spacing: -.045em; }
   .brand { width: clamp(97px, 30vw, 126px); }
   .nav-pages { grid-column: 1 / -1; grid-row: 2; justify-content: space-between; }
   .nav-actions { grid-column: 2; grid-row: 1; gap: clamp(6px, 2vw, 13px); }
-  .nav-pages a, .nav-actions a, .nav-shell button { font-size: .91rem; }
+  .nav-pages { gap: 4px 8px; flex-wrap: wrap; }
+  .nav-pages a, .nav-shell button { font-size: .73rem; }
+  .nav-actions a { font-size: .79rem; }
   .footer-inner { min-height: 78px; }
   .footer .brand { width: 94px; flex: none; }
 }

@@ -1,4 +1,4 @@
-import { front, productById, money } from './catalog.js'
+import { front, productById, money, boxName } from './catalog.js'
 import { icon } from './icons.js'
 import { getCart, removeLine, clearCart, changeQuantity, lineSubtotal, boxDescription, MAX_QUANTITY } from './cart.js'
 import { fillTrolley, enterTrolley, flyPouch, dissolvePouches, animateElement } from './trolley-motion.js'
@@ -27,7 +27,7 @@ export function initCartPage(root, notify) {
     const lines = getCart()
     list.innerHTML = lines.map(line => {
       const product = productById[line.ids[0]]
-      const name = line.type === 'box' ? 'Custom box' : product.name
+      const name = line.type === 'box' ? boxName(line.ids) : product.name
       return `
         <li class="cart-item" data-line-key="${line.key}">
           <div class="cart-item-art">${line.ids.map(id => '<img src="' + front(productById[id]) + '" alt="' + productById[id].name + ' pouch">').join('')}</div>

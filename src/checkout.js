@@ -1,11 +1,11 @@
 import { prepareTextFields, validateTextFields } from './forms.js'
-import { front, back, productById, money } from './catalog.js'
+import { front, back, productById, money, boxName } from './catalog.js'
 import { getCart, clearCart, lineSubtotal, boxDescription } from './cart.js'
 import { getPreviewAccount } from './account.js'
 import { fillTrolley, enterTrolley, flyPouch, animateElement } from './trolley-motion.js'
 import { backendEnabled, request, jsonRequest, orderItems, quoteCart } from './api.js'
 
-const nameOf = line => line.type === 'box' ? 'Custom box' : productById[line.ids[0]].name
+const nameOf = line => line.type === 'box' ? boxName(line.ids) : productById[line.ids[0]].name
 const fingerprint = lines => JSON.stringify(lines.map(({ key, quantity }) => [key, quantity]).sort())
 const subtotal = lines => lines.reduce((total, line) => total + lineSubtotal(line), 0)
 const rupees = paise => money(paise / 100)

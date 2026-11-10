@@ -310,7 +310,7 @@ body[data-page="checkout"] { padding-bottom: 205px; }
 .quiet-control { border: 0; border-radius: 0; background: transparent; padding: 10px 2px; text-decoration: underline; text-underline-offset: 3px; }
 .admin-table-wrap { overflow-x: auto; margin-block: 20px 35px; }
 .admin-table { width: 100%; border-collapse: collapse; text-align: left; font: 500 .8rem/1.5 Manrope,sans-serif; }
-.admin-table caption { text-align: left; font: 800 1.8rem 'Bodoni Moda',serif; margin-bottom: 12px; }
+.admin-table caption { text-align: left; font: 800 1.8rem Montserrat,Manrope,sans-serif; margin-bottom: 12px; }
 .admin-table th, .admin-table td { border-bottom: 1px solid var(--line); padding: 12px 10px; }
 .admin-table th:first-child, .admin-table td:first-child { padding-left: 0; }
 .admin-table input[type="number"] { width: 120px; min-height: 40px; border: 1px solid #b9aa96; border-radius: 0; background: transparent; font: inherit; padding: 7px; }

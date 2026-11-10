@@ -3,6 +3,7 @@ import { products, front } from './catalog.js'
 import { icon } from './icons.js'
 import { renderTrolley } from './trolley.js'
 import { cartPage, checkoutPage, accountPage, adminPage } from './commerce-templates.js'
+import { shopPage, productPage, boxPage, flavourStudio } from './collection-templates.js'
 
 export { icon } from './icons.js'
 const logo = '<img src="/media/logo.png" width="353" height="104" alt="PanVibes PanPops">'
@@ -15,7 +16,8 @@ function header(page) {
         <a class="brand" href="/#top" aria-label="PanPops home">${logo}</a>
         <div class="nav-pages">
           <a href="/#top"${page === 'home' ? ' aria-current="page"' : ''}>Home</a>
-          <a href="/#products">Products</a>
+          <a href="/shop/"${page === 'shop' || page === 'product' ? ' aria-current="page"' : ''}>Products</a>
+          <a href="/build-a-box/"${page === 'box' ? ' aria-current="page"' : ''}>Build a Box</a>
           <button type="button" data-future-page>About Us</button>
           <button type="button" data-future-page>Contact</button>
         </div>
@@ -49,12 +51,16 @@ function home() {
           </button>`).join('')}
         <div class="scene-host crossing-scene" data-scene aria-hidden="true"></div>
       </div>
-    </section>`
+    </section>
+    <div class="catalog-section">${flavourStudio()}</div>`
 }
 
-export function renderPage(page = 'home') {
+export function renderPage(page = 'home', product) {
   const pages = {
     home,
+    shop: () => '<div class="catalog-section">' + shopPage() + '</div>',
+    product: () => '<div class="catalog-section">' + productPage(product) + '</div>',
+    box: () => '<div class="catalog-section">' + boxPage() + '</div>',
     cart: cartPage,
     admin: adminPage,
     checkout: checkoutPage,

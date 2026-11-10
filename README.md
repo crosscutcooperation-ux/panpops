@@ -2,6 +2,8 @@
 
 Private PanPops storefront prototype with an interactive homepage, animated cart overview, checkout terminal, and preview account screens. A separate Rust/Axum service provides editable prices, delivery rules, persisted orders, and Razorpay verification.
 
+The supplied **Our Products** and **Our Flavours** apps are integrated into the same multi-page site: `/shop/` has rotating single-pack and combo displays, each flavour has a direct product URL, the homepage includes the floating flavour studio below the original crossing, and `/build-a-box/` packs two to four pouches into the 3D tray. The selected components use the ZIP's Montserrat, Manrope, and Space Mono fonts. All purchase controls share the existing persisted cart and Rust price catalogue.
+
 ## Run locally
 
 ```sh
@@ -30,4 +32,6 @@ Follow [backend/README.md](backend/README.md) to run the Rust service and manage
 
 `src/templates.js` and `src/commerce-templates.js` render the pages. `src/cart.js` is the shared cart store. `src/trolley-motion.js` provides the shared trolley presentation and pouch effects. The original Three.js pouch models remain in `src/scenes.js`.
 
-PanPops packaging images are sourced from the [current PanPops storefront](https://panvibesonline.com/). Bodoni Moda and Manrope are distributed under their bundled OFL licenses.
+`src/collection-templates.js`, `src/collections.js`, `src/collection-scenes.js`, and `src/catalog-pages.css` contain the selected ZIP components and their integration. These styles are scoped to the imported sections so the homepage crossing and checkout retain their layouts.
+
+PanPops packaging images are sourced from the [PanPops storefront](https://panvibesonline.com/). Montserrat, Manrope, and Space Mono are served locally with their bundled OFL licenses.

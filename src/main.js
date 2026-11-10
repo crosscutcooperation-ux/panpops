@@ -6,6 +6,7 @@ import { getCart, addLine } from './cart.js'
 import { initCartPage } from './cart-page.js'
 import { initCheckoutPage } from './checkout.js'
 import { initAccountPage } from './account.js'
+import { initCollections } from './collections.js'
 
 const motion = matchMedia('(prefers-reduced-motion: reduce)')
 const toast = document.querySelector('.toast')
@@ -196,6 +197,7 @@ async function startStore() {
   if (admin) initAdminPage(admin)
   const crossing = document.querySelector('[data-crossing]')
   if (crossing) initCrossing(crossing)
+  initCollections(notify)
   const cartPage = document.querySelector('[data-cart-page]')
   if (cartPage) initCartPage(cartPage, notify)
   const checkout = document.querySelector('[data-checkout-page]')
