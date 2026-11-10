@@ -2,7 +2,8 @@ import { products, productById, boxName, productUrl, front, money, MIN_BOX, MAX_
 import { icon } from './icons.js'
 import { productStyle } from './collection-templates.js'
 import { getCart, addLine, packSubtotal, MAX_QUANTITY } from './cart.js'
-import { playCartArrival } from './cart-arrival.js'
+import { playCartArrival, playBoxArrival } from './cart-arrival.js'
+import { flyPouch, animateElement } from './trolley-motion.js'
 
 const motion = matchMedia('(prefers-reduced-motion: reduce)')
 let notify
@@ -13,7 +14,10 @@ function addToCart(type, ids, quantity = 1, origin) {
   const name = type === 'box' ? boxName(ids) : productById[ids[0]].name
   if (!result.added) { notify('Your cart has reached the limit for this item.'); return false }
   notify(name + (result.added > 1 ? ' × ' + result.added : '') + ' added to cart.')
-  if (origin) playCartArrival(productById[ids[0]], origin.getBoundingClientRect(), before, getCart(), motion.matches)
+  if (origin) {
+    if (type === 'box') playBoxArrival(origin.getBoundingClientRect(), before, getCart(), motion.matches)
+    else playCartArrival(productById[ids[0]], origin.getBoundingClientRect(), before, getCart(), motion.matches)
+  }
   return true
 }
 
@@ -251,55 +255,106 @@ function initProduct(root) {
 
 function initBox(root) {
   const stage = root.querySelector('[data-stage]')
-  const slots = Array.from(root.querySelectorAll('.tray-slot img'))
+  const slots = [...root.querySelectorAll('.tray-slot img')]
   const add = root.querySelector('[data-add-box]')
-  const actions = Array.from(root.querySelectorAll('[data-box-id]'))
-  const quantities = Array.from(root.querySelectorAll('[data-box-quantity]'))
-  const total = root.querySelector('[data-box-total]')
-  const count = root.querySelector('[data-box-count]')
+  const picks = [...root.querySelectorAll('[data-box-pick]')]
+  const removals = [...root.querySelectorAll('[data-box-remove]')]
+  const sizeInputs = [...root.querySelectorAll('[name="box-size"]')]
   const status = root.querySelector('[data-box-status]')
   const requested = new URLSearchParams(location.search).get('mix')?.split(',') ?? []
   let selected = requested.length >= MIN_BOX && requested.length <= MAX_BOX && requested.every(id => Object.hasOwn(productById, id)) ? requested : []
+  let capacity = selected.length > 4 ? 6 : 4
+  let busy = false
   const getScene = mountScene(stage, async (scenes, ...args) => {
     const scene = await scenes.createTray(...args)
+    scene.setCapacity(capacity)
     scene.setContents(selected, true)
     return scene
   })
 
   function render() {
-    const number = selected.length
+    stage.dataset.capacity = capacity
+    sizeInputs.forEach(input => { input.checked = Number(input.value) === capacity; input.disabled = busy })
     slots.forEach((slot, index) => {
-      const id = selected[index]
-      slot.hidden = !id
-      if (id) slot.src = front(productById[id])
+      slot.closest('.tray-slot').hidden = index >= capacity
+      slot.hidden = !selected[index]
+      if (selected[index]) slot.src = front(productById[selected[index]])
     })
-    for (const quantity of quantities) quantity.value = selected.filter(id => id === quantity.dataset.boxQuantity).length
-    for (const action of actions) {
-      action.disabled = action.dataset.delta === '1' ? number >= MAX_BOX || productById[action.dataset.boxId].active === false : !selected.includes(action.dataset.boxId)
-    }
-    add.disabled = number < MIN_BOX || selected.some(id => productById[id].active === false)
-    total.textContent = money(packSubtotal(selected))
-    count.textContent = number + ' / ' + MAX_BOX + ' POUCHES'
-    status.textContent = number >= MAX_BOX ? 'Your box is full.' :
-      number >= MIN_BOX ? 'Your box is ready to add.' :
-      number === 1 ? 'Choose 1 more pouch.' : 'Choose at least ' + MIN_BOX + ' pouches.'
-    getScene()?.setContents(selected)
+    root.querySelectorAll('[data-box-quantity]').forEach(output => { output.value = selected.filter(id => id === output.dataset.boxQuantity).length })
+    picks.forEach(button => {
+      const count = selected.filter(id => id === button.dataset.boxPick).length
+      button.setAttribute('aria-pressed', String(count > 0))
+      button.closest('.box-picture-tile').classList.toggle('is-selected', count > 0)
+      button.disabled = busy || selected.length >= capacity || productById[button.dataset.boxPick].active === false
+    })
+    removals.forEach(button => { button.disabled = busy || !selected.includes(button.dataset.boxRemove) })
+    add.disabled = busy || selected.length < MIN_BOX || selected.some(id => productById[id].active === false)
+    root.querySelector('[data-box-total]').textContent = money(packSubtotal(selected))
+    root.querySelector('[data-box-count]').textContent = selected.length + ' / ' + capacity + ' POUCHES'
+    status.textContent = busy ? 'Packing your box…' : selected.length === capacity ? 'Your box is full.' : selected.length >= MIN_BOX ? 'Your box is ready. Add more or close it.' : 'Choose ' + (MIN_BOX - selected.length) + ' more pouch' + (MIN_BOX - selected.length === 1 ? '.' : 'es.')
   }
-
-  for (const action of actions) action.addEventListener('click', () => {
-    const { boxId, delta } = action.dataset
-    if (delta === '1' && selected.length < MAX_BOX) selected = [...selected, boxId]
-    else if (delta === '-1') {
-      const index = selected.lastIndexOf(boxId)
-      if (index >= 0) selected = selected.filter((_, position) => position !== index)
+  function syncContents(immediate = false) { getScene()?.setContents(selected, immediate) }
+  picks.forEach(button => button.addEventListener('click', async () => {
+    if (busy || selected.length >= capacity) return
+    const id = button.dataset.boxPick
+    busy = true
+    render()
+    const target = root.querySelectorAll('.box-slot-targets span')[selected.length]
+    try { await flyPouch(productById[id], button.querySelector('img').getBoundingClientRect(), target.getBoundingClientRect()) }
+    finally {
+      selected = [...selected, id]
+      syncContents(true)
+      busy = false
+      render()
     }
+  }))
+  removals.forEach(button => button.addEventListener('click', () => {
+    if (busy) return
+    const index = selected.lastIndexOf(button.dataset.boxRemove)
+    if (index >= 0) selected = selected.filter((_, position) => position !== index)
+    syncContents()
     render()
-  })
-
-  add.addEventListener('click', () => {
-    if (selected.length < MIN_BOX || !addToCart('box', selected, 1, add)) return
-    selected = []
+  }))
+  sizeInputs.forEach(input => input.addEventListener('change', () => {
+    if (busy) return
+    const next = Number(input.value)
+    if (selected.length > next) {
+      input.checked = false
+      sizeInputs.find(control => Number(control.value) === capacity).checked = true
+      status.textContent = 'Remove ' + (selected.length - next) + ' pouches before choosing the smaller box.'
+      return
+    }
+    capacity = next
+    getScene()?.setCapacity(capacity)
+    syncContents(true)
     render()
+  }))
+  add.addEventListener('click', async () => {
+    if (busy || selected.length < MIN_BOX) return
+    const contents = [...selected]
+    if (contents.some(id => productById[id].active === false)) return
+    const before = getCart()
+    const result = addLine('box', contents, 1, capacity)
+    if (!result.added) { notify('Your cart has reached the limit for this box.'); return }
+    busy = true
+    render()
+    stage.dataset.sealing = ''
+    try {
+      const scene = getScene()
+      if (scene && !motion.matches) await scene.close()
+      else await animateElement(stage.querySelector('.box-fallback-lid'), [{ opacity: 0, transform: 'translate(-50%,-150%) rotateX(-90deg)' }, { opacity: 1, transform: 'translate(-50%,-50%) rotateX(0)' }], { duration: 650, fill: 'both' })
+      notify('Your sealed box has been added to cart.')
+      stage.dataset.departing = ''
+      await playBoxArrival(stage.getBoundingClientRect(), before, getCart(), motion.matches)
+      selected = []
+    } finally {
+      delete stage.dataset.sealing
+      delete stage.dataset.departing
+      getScene()?.open()
+      syncContents(true)
+      busy = false
+      render()
+    }
   })
   render()
 }
@@ -429,6 +484,5 @@ export function initCollections(tell) {
   if (carousel) initCarousel(carousel)
   const product = document.querySelector('[data-product]')
   if (product) initProduct(product)
-  const box = document.querySelector('[data-box]')
-  if (box) initBox(box)
+  document.querySelectorAll('[data-box]').forEach(initBox)
 }

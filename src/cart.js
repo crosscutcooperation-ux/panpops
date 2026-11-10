@@ -22,16 +22,18 @@ function parseCart(raw) {
     if (!line.ids.every(id => Object.hasOwn(productById, id))) return []
     if (line.type === 'pack' && line.ids.length === 1) return [makeLine('pack', line.ids, line.quantity)]
     if (line.type === 'box' && line.ids.length >= MIN_BOX && line.ids.length <= MAX_BOX) {
-      return [makeLine('box', line.ids, line.quantity)]
+      const capacity = line.capacity === 6 || line.ids.length > 4 ? 6 : 4
+      if (line.ids.length > capacity) return []
+      return [makeLine('box', line.ids, line.quantity, capacity)]
     }
     return []
   })
 }
 
-function makeLine(type, ids, quantity = 1) {
+function makeLine(type, ids, quantity = 1, capacity = ids.length > 4 ? 6 : 4) {
   const sorted = boxContents(ids)
-  const key = type + ':' + sorted.join('+')
-  return { key, type, ids: sorted, quantity: Math.min(MAX_QUANTITY, quantity) }
+  const key = type + ':' + (type === 'box' ? capacity + ':' : '') + sorted.join('+')
+  return { key, type, ids: sorted, quantity: Math.min(MAX_QUANTITY, quantity), ...(type === 'box' ? { capacity } : {}) }
 }
 
 function readCart() {
@@ -65,8 +67,9 @@ window.addEventListener('pageshow', event => {
   if (event.persisted && storageAvailable) syncCart()
 })
 
-export function addLine(type, ids, quantity = 1) {
-  const line = makeLine(type, ids, quantity)
+export function addLine(type, ids, quantity = 1, capacity) {
+  if (!ids.length || ids.some(id => !Object.hasOwn(productById, id)) || (type === 'box' && (ids.length < MIN_BOX || ids.length > (capacity || (ids.length > 4 ? 6 : 4))))) return { added: 0, persisted: storageAvailable }
+  const line = makeLine(type, ids, quantity, capacity)
   const match = cart.find(item => item.key === line.key)
   if (match?.quantity === MAX_QUANTITY) return { added: 0, persisted: storageAvailable }
   const added = Math.min(line.quantity, MAX_QUANTITY - (match?.quantity ?? 0))

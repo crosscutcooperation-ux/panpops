@@ -1,6 +1,7 @@
 import { products, front } from './catalog.js'
 
 import { icon } from './icons.js'
+import { inspectorTemplate } from './parcel-art.js'
 import { renderTrolley } from './trolley.js'
 import { cartPage, checkoutPage, accountPage, adminPage } from './commerce-templates.js'
 import { shopPage, productPage, boxPage, flavourStudio } from './collection-templates.js'
@@ -36,11 +37,11 @@ function home() {
       <img src="${front(products[0])}" width="680" height="925" alt="PanPops Chataka Pataka roasted makhana pouch" fetchpriority="high">
     </section>
     <section id="products" class="flavour-crossing" aria-labelledby="crossing-heading">
-      <div class="crossing-heading shell">
-        <h1 id="crossing-heading">Pick your crunch.</h1>
-        <p>Tap a pouch to add it to your cart.</p>
-      </div>
       <div class="crossing-stage" data-crossing>
+        <div class="crossing-heading">
+          <h1 id="crossing-heading">Pick your crunch.</h1>
+          <p>Tap a pouch to add it to your cart.</p>
+        </div>
         ${products.map(product => `
           <button class="crossing-band crossing-${product.id}" type="button" data-crossing-add="${product.id}" style="--accent:${product.accent};--stage:${product.stage};--light:${product.light}" aria-label="Add ${product.name} to cart">
             <span class="crossing-art" data-crossing-art aria-hidden="true">
@@ -52,7 +53,7 @@ function home() {
         <div class="scene-host crossing-scene" data-scene aria-hidden="true"></div>
       </div>
     </section>
-    <div class="catalog-section">${flavourStudio()}</div>`
+    <div class="catalog-section">${flavourStudio()}${boxPage(true)}</div>`
 }
 
 export function renderPage(page = 'home', product) {
@@ -72,6 +73,6 @@ export function renderPage(page = 'home', product) {
       <a class="brand" href="/#top" aria-label="PanPops home">${logo}</a>
       <p>Roasted makhana. Four ways to crunch.</p>
     </div></footer>` +
-    renderTrolley('arrival', 'cart-train', 'data-cart-train aria-hidden="true" hidden') +
+    inspectorTemplate() + renderTrolley('arrival', 'cart-train', 'data-cart-train aria-hidden="true" hidden') +
     '<div class="toast" role="status" aria-live="polite"></div>'
 }

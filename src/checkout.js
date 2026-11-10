@@ -1,8 +1,9 @@
+import { parcelImage, boxButton } from './parcel-art.js'
 import { prepareTextFields, validateTextFields } from './forms.js'
-import { front, back, productById, money, boxName } from './catalog.js'
-import { getCart, clearCart, lineSubtotal, boxDescription } from './cart.js'
+import { productById, money, boxName } from './catalog.js'
+import { getCart, clearCart, lineSubtotal } from './cart.js'
 import { getPreviewAccount } from './account.js'
-import { fillTrolley, enterTrolley, flyPouch, animateElement } from './trolley-motion.js'
+import { fillTrolley, enterTrolley, flyPouch, flyBox, animateElement } from './trolley-motion.js'
 import { backendEnabled, request, jsonRequest, orderItems, quoteCart } from './api.js'
 
 const nameOf = line => line.type === 'box' ? boxName(line.ids) : productById[line.ids[0]].name
@@ -89,7 +90,7 @@ export function initCheckoutPage(root) {
 
   function renderReceipt(lines, quote, scanned) {
     const visibleLines = scanned ? lines.filter(line => scanned.has(line.key)) : lines
-    root.querySelector('[data-checkout-items]').innerHTML = visibleLines.map(line => '<li><span>' + line.quantity + ' × ' + nameOf(line) + '</span><strong>' + money(lineSubtotal(line)) + '</strong></li>').join('')
+    root.querySelector('[data-checkout-items]').innerHTML = visibleLines.map(line => '<li><span>' + (line.type === 'box' ? boxButton(line) : '') + line.quantity + ' × ' + nameOf(line) + '</span><strong>' + money(lineSubtotal(line)) + '</strong></li>').join('')
     const done = !scanned || scanned.size === lines.length
     const scannedAmount = Math.round(subtotal(visibleLines) * 100)
     root.querySelector('[data-checkout-subtotal]').textContent = rupees(scannedAmount)
@@ -106,7 +107,7 @@ export function initCheckoutPage(root) {
     if (epoch !== packingEpoch) return
     const scanned = new Set()
     renderReceipt(lines, quote, scanned)
-    lineup.innerHTML = lines.map(line => '<div class="packing-item"><img src="' + front(productById[line.ids[0]]) + '" alt=""></div>').join('')
+    lineup.innerHTML = lines.map(line => '<div class="packing-item"><img src="' + parcelImage(line) + '" alt=""></div>').join('')
     lineup.hidden = false
     scene.dataset.phase = 'entering'
     fillTrolley(trolley, [])
@@ -117,10 +118,12 @@ export function initCheckoutPage(root) {
     for (const [index, item] of [...lineup.children].entries()) {
       const line = lines[index]
       const product = productById[line.ids[0]]
-      await flyPouch(product, item.getBoundingClientRect(), scanner.getBoundingClientRect(), 0, 'back')
+      if (line.type === 'box') await flyBox(item.getBoundingClientRect(), scanner.getBoundingClientRect())
+      else await flyPouch(product, item.getBoundingClientRect(), scanner.getBoundingClientRect(), 0, 'back')
       if (epoch !== packingEpoch) return
       item.style.visibility = 'hidden'
-      scannerImage.src = back(product)
+      scannerImage.src = parcelImage(line, 'back')
+      scannerImage.classList.toggle('scanning-box', line.type === 'box')
       scannerImage.hidden = false
       scanner.dataset.scanning = ''
       root.querySelector('[data-scanned-name]').textContent = line.quantity + ' × ' + nameOf(line)
@@ -134,7 +137,8 @@ export function initCheckoutPage(root) {
       delete scanner.dataset.scanning
       const start = scannerImage.getBoundingClientRect()
       scannerImage.hidden = true
-      await flyPouch(product, start, trolley.querySelector('[data-arrival-target]').getBoundingClientRect(), 0, 'back')
+      if (line.type === 'box') await flyBox(start, trolley.querySelector('[data-arrival-target]').getBoundingClientRect())
+      else await flyPouch(product, start, trolley.querySelector('[data-arrival-target]').getBoundingClientRect(), 0, 'back')
       if (epoch !== packingEpoch) return
       fillTrolley(trolley, lines.filter(candidate => scanned.has(candidate.key)))
       status.textContent = 'Scanned ' + (index + 1) + ' of ' + lines.length
@@ -190,6 +194,7 @@ export function initCheckoutPage(root) {
     const customer = Object.fromEntries(new FormData(form))
     const payload = {
       items: orderItems(getCart()),
+      packages: getCart().map(({ type, ids, quantity, capacity }) => ({ kind: type, ids, quantity, capacity: type === 'box' ? capacity || 4 : null })),
       over14: form.elements.over14.checked,
       expected_total_paise: reviewedQuote.total_paise,
       customer: {
@@ -263,7 +268,7 @@ export function initCheckoutPage(root) {
       ].filter(Boolean).join('\n')
       root.querySelector('[data-review-items]').innerHTML = lines.map(line =>
         '<li><span>' + line.quantity + ' × ' + nameOf(line) +
-        (line.type === 'box' ? '<small>' + boxDescription(line.ids) + '</small>' : '') +
+        (line.type === 'box' ? boxButton(line) + '<small>' + line.ids.length + ' pouches · sealed box</small>' : '') +
         '</span><strong>' + money(lineSubtotal(line)) + '</strong></li>'
       ).join('') + '<li><span>Delivery</span><strong>' + rupees(quote.shipping_paise) + '</strong></li>'
       root.querySelector('[data-review-subtotal]').textContent = rupees(quote.total_paise)

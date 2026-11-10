@@ -389,8 +389,55 @@ impl Customer {
 
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
+struct Package {
+    kind: String,
+    ids: Vec<String>,
+    quantity: i64,
+    capacity: Option<usize>,
+}
+
+fn validate_packages(packages: &[Package], items: &[store::Item]) -> ApiResult<()> {
+    use std::collections::BTreeMap;
+    if packages.is_empty() {
+        return Ok(());
+    }
+    if packages.len() > 100 {
+        return Err(AppError::bad("Too many packages."));
+    }
+    let mut packed = BTreeMap::new();
+    for package in packages {
+        let valid = match package.kind.as_str() {
+            "pack" => package.ids.len() == 1 && package.capacity.is_none(),
+            "box" => {
+                matches!(package.capacity, Some(4) | Some(6))
+                    && package.ids.len() >= 2
+                    && package.ids.len() <= package.capacity.unwrap_or(0)
+            }
+            _ => false,
+        };
+        if !valid || !(1..=99).contains(&package.quantity) {
+            return Err(AppError::bad("Invalid package contents or size."));
+        }
+        for id in &package.ids {
+            *packed.entry(id.clone()).or_insert(0i64) += package.quantity;
+        }
+    }
+    let mut ordered = BTreeMap::new();
+    for item in items {
+        *ordered.entry(item.id.clone()).or_insert(0i64) += item.quantity;
+    }
+    if packed != ordered {
+        return Err(AppError::bad("Package contents do not match the order."));
+    }
+    Ok(())
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 struct OrderRequest {
     items: Vec<store::Item>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    packages: Vec<Package>,
     customer: Customer,
     over14: bool,
     expected_total_paise: i64,
@@ -419,6 +466,7 @@ async fn create_order(
         ));
     }
     body.customer.validate()?;
+    validate_packages(&body.packages, &body.items)?;
     let key = headers
         .get("x-idempotency-key")
         .and_then(|value| value.to_str().ok())
@@ -656,6 +704,39 @@ mod tests {
     }
 
     #[test]
+    fn six_pouch_boxes_preserve_their_contents() {
+        let items = vec![
+            store::Item {
+                id: "chataka".into(),
+                quantity: 3,
+            },
+            store::Item {
+                id: "cream".into(),
+                quantity: 3,
+            },
+        ];
+        let mut packages = vec![Package {
+            kind: "box".into(),
+            ids: vec![
+                "chataka".into(),
+                "chataka".into(),
+                "chataka".into(),
+                "cream".into(),
+                "cream".into(),
+                "cream".into(),
+            ],
+            quantity: 1,
+            capacity: Some(6),
+        }];
+        assert!(validate_packages(&packages, &items).is_ok());
+        packages[0].capacity = Some(4);
+        assert!(validate_packages(&packages, &items).is_err());
+        packages[0].capacity = Some(6);
+        packages[0].ids.pop();
+        assert!(validate_packages(&packages, &items).is_err());
+    }
+
+    #[test]
     fn hmac_matches_known_vector_and_rejects_changed_bytes() {
         let expected = "f7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8";
         assert!(payments::verify_signature(
@@ -783,6 +864,7 @@ mod tests {
         let mut body = json!({
             "items":[{"id":"chataka","quantity":1},{"id":"cream","quantity":2}],
             "expected_total_paise":1, "over14":true,
+            "packages":[{"kind":"box","ids":["chataka","cream","cream"],"quantity":1,"capacity":4}],
             "customer":{"full_name":"Test Customer","email":"test@example.com","phone":"9000000000","address":"1 Test Street","address2":"","city":"Mumbai","state":"Maharashtra","pincode":"400001","country":"India"}
         });
         assert_eq!(
@@ -795,6 +877,19 @@ mod tests {
         body["expected_total_paise"] = json!(59200);
         let (status, order) = call(&router, "POST", "/api/orders", body.clone(), &headers).await;
         assert_eq!(status, StatusCode::OK);
+        let saved: String = state
+            .connection()
+            .unwrap()
+            .query_row(
+                "SELECT details FROM orders WHERE id=?1",
+                [order["id"].as_str().unwrap()],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            serde_json::from_str::<Value>(&saved).unwrap()["packages"][0]["capacity"],
+            4
+        );
         assert_eq!(
             call(&router, "POST", "/api/orders", body.clone(), &headers)
                 .await

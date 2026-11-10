@@ -2,7 +2,7 @@
 
 Private PanPops storefront prototype with an interactive homepage, animated cart overview, checkout terminal, and preview account screens. A separate Rust/Axum service provides editable prices, delivery rules, persisted orders, and Razorpay verification.
 
-The supplied **Our Products** and **Our Flavours** apps are integrated into the same multi-page site: `/shop/` has rotating single-pack and combo displays, each flavour has a direct product URL, the homepage includes the floating flavour studio below the original crossing, and `/build-a-box/` packs two to four pouches into the 3D tray. The selected components use the ZIP's Montserrat, Manrope, and Space Mono fonts. All purchase controls share the existing persisted cart and Rust price catalogue.
+The supplied **Our Products** and **Our Flavours** apps are integrated into the same multi-page site: `/shop/` has rotating single-pack and combo displays, each flavour has a direct product URL, the homepage includes the floating flavour studio below the original crossing followed by the picture-based box builder, and `/build-a-box/` packs two to six pouches into a four- or six-slot 3D box. The selected components use the ZIP's Montserrat, Manrope, and Space Mono fonts. All purchase controls share the existing persisted cart and Rust price catalogue.
 
 ## Run locally
 
@@ -35,3 +35,5 @@ Follow [backend/README.md](backend/README.md) to run the Rust service and manage
 `src/collection-templates.js`, `src/collections.js`, `src/collection-scenes.js`, and `src/catalog-pages.css` contain the selected ZIP components and their integration. These styles are scoped to the imported sections so the homepage crossing and checkout retain their layouts.
 
 PanPops packaging images are sourced from the [PanPops storefront](https://panvibesonline.com/). Montserrat, Manrope, and Space Mono are served locally with their bundled OFL licenses.
+
+The box builder animates picture selections into the tray and closes its lid before sending a sealed box to the trolley. Boxes remain sealed in cart and checkout; selecting a box opens its contents for inspection. Cart storage retains each box’s capacity and full contents, including legacy saved boxes. Rust orders validate and retain package metadata alongside server-priced product quantities.

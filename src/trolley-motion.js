@@ -1,16 +1,17 @@
+import { BOX_IMAGE } from './parcel-art.js'
 import { front, back, products } from './catalog.js'
 
 export const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)')
 
 export function fillTrolley(trolley, lines) {
-  const quantities = new Map()
+  const packs = new Map()
+  const boxes = []
   for (const line of lines) {
-    for (const id of line.ids) quantities.set(id, (quantities.get(id) ?? 0) + line.quantity)
+    if (line.type === 'box') boxes.push({ image: BOX_IMAGE, quantity: line.quantity })
+    else for (const id of line.ids) packs.set(id, (packs.get(id) || 0) + line.quantity)
   }
-  trolley.querySelector('[data-train-packs]').innerHTML = products.filter(product => quantities.has(product.id)).map(product => {
-    const quantity = quantities.get(product.id)
-    return '<span><img src="' + front(product) + '" alt="">' + (quantity > 1 ? '<b>' + quantity + '</b>' : '') + '</span>'
-  }).join('')
+  const items = [...boxes, ...products.filter(product => packs.has(product.id)).map(product => ({ image: front(product), quantity: packs.get(product.id) }))]
+  trolley.querySelector('[data-train-packs]').innerHTML = items.map(item => '<span' + (item.image === BOX_IMAGE ? ' class="trolley-parcel"' : '') + '><img src="' + item.image + '" alt="">' + (item.quantity > 1 ? '<b>' + item.quantity + '</b>' : '') + '</span>').join('')
 }
 
 export async function animateElement(element, frames, options) {
@@ -36,13 +37,13 @@ export function enterTrolley(trolley) {
 export async function flyPouch(product, start, end, delay = 0, face = 'front') {
   if (reducedMotion.matches) return
   const width = Math.min(136, Math.max(45, end.width))
-  const height = width * 925 / 680
+  const height = width * (face === 'box' ? .75 : 925 / 680)
   const startX = start.left + start.width / 2 - width / 2
   const startY = start.top + start.height / 2 - height / 2
   const dx = end.left + end.width / 2 - startX - width / 2
   const dy = end.top + end.height / 2 - startY - height / 2
   const image = new Image()
-  image.src = face === 'back' ? back(product) : front(product)
+  image.src = face === 'box' ? BOX_IMAGE : face === 'back' ? back(product) : front(product)
   image.alt = ''
   image.className = 'cart-flight'
   Object.assign(image.style, { left: startX + 'px', top: startY + 'px', width: width + 'px', opacity: '0' })
@@ -55,6 +56,8 @@ export async function flyPouch(product, start, end, delay = 0, face = 'front') {
     ], { duration: 680, delay, easing: 'cubic-bezier(.3,.12,.38,1)', fill: 'both' })
   } finally { image.remove() }
 }
+
+export const flyBox = (start, end, delay = 0) => flyPouch(null, start, end, delay, 'box')
 
 export async function dissolvePouches(elements) {
   if (reducedMotion.matches) return

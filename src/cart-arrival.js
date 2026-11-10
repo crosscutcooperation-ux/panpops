@@ -1,8 +1,8 @@
+import { BOX_IMAGE } from './parcel-art.js'
 import { front } from './catalog.js'
 import { fillTrolley } from './trolley-motion.js'
 
 const train = document.querySelector('[data-cart-train]')
-const packs = train.querySelector('[data-train-packs]')
 const target = train.querySelector('[data-arrival-target]')
 let queue = Promise.resolve()
 
@@ -10,17 +10,17 @@ function move(element, frames, duration, easing) {
   return element.animate(frames, { duration, easing, fill: 'both' })
 }
 
-async function throwPouch(product, origin) {
+async function throwPouch(product, origin, isBox = false) {
   const end = target.getBoundingClientRect()
   const width = Math.max(46, Math.min(origin.width, 148))
-  const height = width * 925 / 680
+  const height = width * (isBox ? .75 : 925 / 680)
   const left = origin.left + (origin.width - width) / 2
   const top = origin.top + (origin.height - height) / 2
   const dx = end.left + end.width / 2 - left - width / 2
   const dy = end.top + end.height / 2 - top - height / 2
 
   const pouch = new Image()
-  pouch.src = front(product)
+  pouch.src = isBox ? BOX_IMAGE : front(product)
   pouch.alt = ''
   pouch.className = 'cart-flight'
   Object.assign(pouch.style, { width: width + 'px', left: left + 'px', top: top + 'px' })
@@ -36,7 +36,7 @@ async function throwPouch(product, origin) {
   }
 }
 
-async function runArrival(product, origin, before, after, reduceMotion) {
+async function runArrival(product, origin, before, after, reduceMotion, isBox = false) {
   train.hidden = false
   try {
     if (reduceMotion) {
@@ -49,7 +49,7 @@ async function runArrival(product, origin, before, after, reduceMotion) {
     const incoming = move(train, [{ transform: 'translateX(-105vw)' }, { transform: 'translateX(0)' }], 460, 'cubic-bezier(.18,.8,.27,1)')
     await incoming.finished
     incoming.cancel()
-    await throwPouch(product, origin)
+    await throwPouch(product, origin, isBox)
     fillTrolley(train, after)
     const landing = move(train, [
       { transform: 'translateY(0)' }, { transform: 'translateY(7px)', offset: .25 }, { transform: 'translateY(0)' },
@@ -67,4 +67,9 @@ export function playCartArrival(product, origin, before, after, reduceMotion) {
   queue = queue.then(() => runArrival(product, origin, before, after, reduceMotion)).catch(() => {
     // The cart was already saved when the pouch was selected.
   })
+}
+
+export function playBoxArrival(origin, before, after, reduceMotion) {
+  queue = queue.then(() => runArrival(null, origin, before, after, reduceMotion, true)).catch(() => {})
+  return queue
 }

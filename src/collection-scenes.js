@@ -601,10 +601,10 @@ export async function createShopGallery(grid, host, canvas, context) {
 
 export async function createTray(host, canvas, context) {
   const models = await Promise.all(products.map(pack))
-  const scene = studio(host, canvas, context, { height: 3.0, minWidth: 3.1, cameraY: .13, lookY: .0 })
+  const scene = studio(host, canvas, context, { height: 3.5, minWidth: 3.7, cameraY: .13 })
   const tray = new T.Group()
   tray.rotation.set(-.52, -.045, -.14)
-  tray.position.y = .055
+  tray.position.y = -.12
   scene.world.add(tray)
   const library = new T.Group()
   library.visible = false
@@ -613,59 +613,92 @@ export async function createTray(host, canvas, context) {
   const sources = Object.fromEntries(products.map((product, index) => [product.id, models[index]]))
   const base = new T.MeshStandardMaterial({ color: '#bd8a5b', roughness: .96 })
   const wall = new T.MeshStandardMaterial({ color: '#e4b987', roughness: .89 })
-  const slot = new T.MeshStandardMaterial({ color: '#a7734b', roughness: .97 })
-  function board(width, height, depth, x, y, z, material) {
-    const piece = new T.Mesh(new T.BoxGeometry(width,height,depth),material)
-    piece.position.set(x,y,z)
-    tray.add(piece)
-  }
-  board(2.69, 2.40, .15, 0, 0, -.09, base)
-  for (const side of [-1,1]) {
-    board(2.71, .10, .32, 0, side * 1.17, .05, wall)
-    board(.10, 2.23, .32, side * 1.30, 0, .05, wall)
-  }
-  const places = Array.from({ length: MAX_BOX }, (_, index) => new T.Vector3(index % 2 ? .644 : -.644, index < 2 ? .567 : -.567, .135))
-  for (const { x, y } of places) board(1.22, 1.066, .018, x, y, -.006, slot)
-  board(.048, 2.24, .105, 0, 0, .033, wall)
-  board(2.52, .044, .105, 0, 0, .032, wall)
-
+  const slotMaterial = new T.MeshStandardMaterial({ color: '#a7734b', roughness: .97 })
+  const structure = new T.Group()
+  tray.add(structure)
+  const lid = new T.Group()
+  tray.add(lid)
+  let capacity = 4
+  let places = []
   let pieces = []
-  function setContents(ids, immediate = false) {
-    const available = [...pieces]
-    const timestamp = performance.now()
-    pieces = ids.map((id, index) => {
-      const oldIndex = available.findIndex(piece => piece.id === id)
-      const target = places[index]
-      if (oldIndex >= 0) {
-        const [piece] = available.splice(oldIndex, 1)
-        if (piece.target === target) return piece
-        piece.origin = piece.mesh.position.clone()
-        piece.target = target
-        piece.start = timestamp
-        return piece
-      }
-      const mesh = sources[id].clone()
-      mesh.scale.setScalar(.49)
-      mesh.rotation.z = index % 2 ? .05 : -.044
-      const origin = immediate ? target.clone() : target.clone().add(new T.Vector3(index % 2 ? .12 : -.12, .19, 1.45))
-      mesh.position.copy(origin)
-      tray.add(mesh)
-      return { id, mesh, origin, target, start: immediate ? 0 : timestamp }
-    })
-    for (const piece of available) tray.remove(piece.mesh)
+  let closingAt = 0
+  let closed = false
+  let onClosed
+  let logoTexture
+  textureLoader.load('/media/logo.png', texture => {
+    logoTexture = texture
+    texture.colorSpace = T.SRGBColorSpace
+    const logo = new T.Mesh(new T.PlaneGeometry(1.25,.37),new T.MeshBasicMaterial({ map:texture,transparent:true,side:T.DoubleSide,depthWrite:false }))
+    logo.position.set(0,-1.1,.052)
+    lid.add(logo)
+    scene.invalidate()
+  })
+  function board(parent,w,h,d,x,y,z,material) {
+    const mesh = new T.Mesh(new T.BoxGeometry(w,h,d),material)
+    mesh.position.set(x,y,z)
+    parent.add(mesh)
+  }
+  function setCapacity(next) {
+    capacity = next === 6 ? 6 : 4
+    structure.children.forEach(mesh => mesh.geometry.dispose())
+    structure.clear()
+    lid.children.filter(mesh => mesh.userData.board).forEach(mesh => { mesh.geometry.dispose(); lid.remove(mesh) })
+    const columns = capacity === 6 ? 3 : 2
+    const width = capacity === 6 ? 3.30 : 2.69
+    const cell = (width - .18) / columns
+    board(structure,width,2.4,.15,0,0,-.09,base)
+    for (const side of [-1,1]) {
+      board(structure,width,.1,.32,0,side*1.17,.05,wall)
+      board(structure,.1,2.23,.32,side*(width/2-.05),0,.05,wall)
+    }
+    places = Array.from({length:capacity},(_,i)=>new T.Vector3((i%columns-(columns-1)/2)*cell,i<columns?.567:-.567,.135))
+    places.forEach(({x,y})=>board(structure,cell-.05,1.066,.018,x,y,-.006,slotMaterial))
+    for(let i=1;i<columns;i++) board(structure,.048,2.24,.105,-width/2+.09+i*cell,0,.033,wall)
+    board(structure,width-.17,.044,.105,0,0,.032,wall)
+    const panel = new T.Mesh(new T.BoxGeometry(width,2.4,.08),wall)
+    panel.position.set(0,-1.2,0)
+    panel.userData.board=true
+    lid.add(panel)
+    lid.position.set(0,1.2,.25)
+    lid.rotation.x = closed ? 0 : -2.45
     scene.invalidate()
   }
-  scene.animate(now => {
-    let active = false
-    for (const piece of pieces) {
-      if (!piece.start) continue
-      const t = Math.min(1, (now - piece.start) / 420)
-      piece.mesh.position.lerpVectors(piece.origin, piece.target, ease(t))
-      piece.mesh.position.z += Math.max(0, Math.sin((t - .52) * Math.PI * 2)) * (1 - t) * .16
-      if (t === 1) piece.start = 0
-      else active = true
+  function setContents(ids, immediate = false) {
+    pieces.forEach(piece=>tray.remove(piece.mesh))
+    pieces=ids.slice(0,capacity).map((id,index)=>{
+      const mesh=sources[id].clone()
+      mesh.scale.setScalar(capacity===6?.43:.49)
+      mesh.rotation.z=index%2?.05:-.044
+      const target=places[index]
+      const origin=immediate?target.clone():target.clone().add(new T.Vector3(0,.15,.7))
+      mesh.position.copy(origin)
+      tray.add(mesh)
+      return {mesh,origin,target,start:immediate?0:performance.now()}
+    })
+    scene.invalidate()
+  }
+  scene.animate(now=>{
+    let active=false
+    pieces.forEach(piece=>{
+      if(!piece.start)return
+      const t=Math.min(1,(now-piece.start)/320)
+      piece.mesh.position.lerpVectors(piece.origin,piece.target,ease(t))
+      if(t===1)piece.start=0
+      else active=true
+    })
+    if(closingAt){
+      const t=Math.min(1,(now-closingAt)/700)
+      lid.rotation.x=mix(-2.45,0,ease(t))
+      active=t<1
+      if(t===1){closingAt=0;closed=true;onClosed?.();onClosed=null}
     }
     return active
   })
-  return { setContents, dispose: scene.dispose }
+  setCapacity(4)
+  return {
+    setContents,setCapacity,
+    close(){return new Promise(resolve=>{onClosed=resolve;closingAt=performance.now();scene.invalidate()})},
+    open(){closed=false;closingAt=0;lid.rotation.x=-2.45;scene.invalidate()},
+    dispose(){onClosed?.();logoTexture?.dispose();scene.dispose()},
+  }
 }

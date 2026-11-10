@@ -56,7 +56,7 @@ function shopSelection(standalone = false, recommendedFor = null) {
               <div class="custom-box-still" aria-hidden="true"><div>${products.map(product => packImage(product, '', true)).join('')}</div></div>
               <a class="display-link" href="/build-a-box/" aria-label="Build your own box">View</a>
             </div>
-            <div class="shop-item-copy"><p class="studio-kicker">2–4 POUCHES / ALL YOUR FAVOURITES</p><h3><a href="/build-a-box/">Build a box</a></h3><p class="shop-item-note">A little spicy. A little creamy. Entirely yours.</p><div class="shop-item-buy"><span>From <b data-selection-price="minimum-box">${money(Math.min(...products.map(product => product.price)) * 2)}</b></span><a href="/build-a-box/" aria-label="Choose your box flavours">${icon('plus')}</a></div></div>
+            <div class="shop-item-copy"><p class="studio-kicker">2–6 POUCHES / ALL YOUR FAVOURITES</p><h3><a href="/build-a-box/">Build a box</a></h3><p class="shop-item-note">A little spicy. A little creamy. Entirely yours.</p><div class="shop-item-buy"><span>From <b data-selection-price="minimum-box">${money(Math.min(...products.map(product => product.price)) * 2)}</b></span><a href="/build-a-box/" aria-label="Choose your box flavours">${icon('plus')}</a></div></div>
           </article>
         </div>
         <div class="shop-bottom"><p data-shop-count role="status" aria-live="polite">${items.length + 1} ways to find your happy crunch.</p><span class="studio-kicker">SLOW TURNS. BIG CRUNCH.</span></div>
@@ -119,33 +119,28 @@ export function productPage(product) {
     ${shopSelection(false, product)}`
 }
 
-export function boxPage() {
+export function boxPage(embedded = false) {
   return `
-    <section class="shell inner-page" data-box>
-      <div class="page-heading">${eyebrow('MIX & MATCH')}<h1>Build a box.</h1><p>Choose two to four pouches. Mix flavours or double up on a favourite.</p></div>
+    <section id="build-box" class="shell inner-page box-builder ${embedded ? 'box-builder-home' : ''}" data-box>
+      <div class="page-heading"><p class="eyebrow">MIX & MATCH</p><h${embedded ? '2' : '1'}>Build a box.</h${embedded ? '2' : '1'}><p>Tap a pack. Make it your mix.</p></div>
       <div class="box-layout">
-        <div class="stage box-stage" data-stage>
-          <div class="stage-id"><span></span> THE PACKING STATION</div>
-          <div class="tray-still" aria-hidden="true">
-            ${Array.from({ length: MAX_BOX }, () => '<div class="tray-slot"><span>+</span><img alt="" hidden></div>').join('')}
-          </div>
+        <div class="stage box-stage" data-stage data-capacity="4">
+          <div class="tray-still" aria-hidden="true">${Array.from({ length: MAX_BOX }, (_, index) => `<div class="tray-slot" data-slot="${index}"><span>+</span><img alt="" hidden></div>`).join('')}</div>
           <div class="scene-host" data-scene aria-hidden="true"></div>
+          <div class="box-fallback-lid" aria-hidden="true"><img src="/media/logo.png" alt=""></div>
+          <div class="box-slot-targets" aria-hidden="true">${Array.from({ length: MAX_BOX }, () => '<span></span>').join('')}</div>
           <div class="stage-controls box-counter" data-box-count>0 / 4 POUCHES</div>
         </div>
         <div class="box-controls">
-          <div class="box-rows">${products.map(product => `
-            <div class="box-row">
-              ${packImage(product)}
-              <div><h2>${product.name}</h2><span><b data-unit-price="${product.id}">${money(product.price)}</b> / pouch</span></div>
-              <div class="stepper" aria-label="${product.name} quantity">
-                <button type="button" data-box-id="${product.id}" data-delta="-1" aria-label="Remove ${product.name}" disabled>${icon('minus')}</button>
-                <output data-box-quantity="${product.id}">0</output>
-                <button type="button" data-box-id="${product.id}" data-delta="1" aria-label="Add ${product.name}">${icon('plus')}</button>
-              </div>
+          <div class="box-picture-grid" role="group" aria-label="Choose your pouches">${products.map(product => `
+            <div class="box-picture-tile" style="${productStyle(product)}">
+              <button class="box-picture-add" type="button" data-box-pick="${product.id}" aria-label="Add ${product.name}" aria-pressed="false">${packImage(product)}<span class="tile-tick" aria-hidden="true">✓</span></button>
+              <div class="box-tile-quantity"><button type="button" data-box-remove="${product.id}" aria-label="Remove ${product.name}" disabled>${icon('minus')}</button><output data-box-quantity="${product.id}" aria-label="${product.name} pouches">0</output><span data-unit-price="${product.id}">${money(product.price)}</span></div>
             </div>`).join('')}</div>
           <div class="summary-line"><span>Box subtotal</span><strong data-box-total>₹0</strong></div>
-          <p class="box-status" data-box-status aria-live="polite">Choose at least 2 pouches.</p>
-          <button class="button" type="button" data-add-box disabled>${icon('bag')} Add box to cart</button>
+          <p class="box-status" data-box-status role="status">Choose at least 2 pouches.</p>
+      <fieldset class="box-size"><legend>Box size</legend><label><input type="radio" name="box-size" value="4" checked>4 pouches</label><label><input type="radio" name="box-size" value="6">6 pouches</label></fieldset>
+          <button class="button" type="button" data-add-box disabled>Close box & add to cart</button>
         </div>
       </div>
     </section>`
@@ -176,7 +171,7 @@ export function flavourStudio() {
           <div><p class="studio-kicker">ROASTED MAKHANA</p><h2 data-active-name>${active.name}</h2><p data-active-note>${active.note}</p></div>
         </div>
       </div>
-      <div class="shell flight-footnote"><div class="flight-tabs" role="group" aria-label="Choose a flavour">${products.map((product, index) => `<button type="button" data-flavour="${index}" aria-pressed="${index === 0}" aria-label="Show ${product.name}"><span class="flavour-dot"></span><span class="flight-tab-label">${product.name}</span></button>`).join('')}</div><button class="motion-toggle" type="button" data-motion aria-pressed="true">Motion <span>on</span></button><a class="flight-explore" data-active-link href="${productUrl(active)}">Explore flavour</a></div>
+
       </div>
     </section>`
 }

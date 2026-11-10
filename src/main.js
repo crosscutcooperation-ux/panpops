@@ -1,3 +1,4 @@
+import { initBoxInspector } from './box-inspector.js'
 import { initAdminPage } from './admin.js'
 import { loadCatalogue } from './api.js'
 import { productById } from './catalog.js'
@@ -198,6 +199,7 @@ async function startStore() {
   const crossing = document.querySelector('[data-crossing]')
   if (crossing) initCrossing(crossing)
   initCollections(notify)
+  initBoxInspector()
   const cartPage = document.querySelector('[data-cart-page]')
   if (cartPage) initCartPage(cartPage, notify)
   const checkout = document.querySelector('[data-checkout-page]')

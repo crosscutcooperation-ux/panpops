@@ -1,7 +1,8 @@
+import { boxButton } from './parcel-art.js'
 import { front, productById, money, boxName } from './catalog.js'
 import { icon } from './icons.js'
-import { getCart, removeLine, clearCart, changeQuantity, lineSubtotal, boxDescription, MAX_QUANTITY } from './cart.js'
-import { fillTrolley, enterTrolley, flyPouch, dissolvePouches, animateElement } from './trolley-motion.js'
+import { getCart, removeLine, clearCart, changeQuantity, lineSubtotal, MAX_QUANTITY } from './cart.js'
+import { fillTrolley, enterTrolley, flyPouch, flyBox, dissolvePouches, animateElement } from './trolley-motion.js'
 
 export function initCartPage(root, notify) {
   const experience = root.querySelector('[data-cart-experience]')
@@ -30,11 +31,11 @@ export function initCartPage(root, notify) {
       const name = line.type === 'box' ? boxName(line.ids) : product.name
       return `
         <li class="cart-item" data-line-key="${line.key}">
-          <div class="cart-item-art">${line.ids.map(id => '<img src="' + front(productById[id]) + '" alt="' + productById[id].name + ' pouch">').join('')}</div>
+          <div class="cart-item-art">${line.type === 'box' ? boxButton(line) : '<img src="' + front(product) + '" alt="' + product.name + ' pouch">'}</div>
           <div class="cart-card-info">
             <p class="item-weight">${line.type === 'box' ? line.ids.length + ' × 50 g' : product.weight + ' g pouch'}</p>
             <h2>${name}</h2>
-            ${line.type === 'box' ? '<p class="combo-contents">' + boxDescription(line.ids) + '</p>' : ''}
+            ${line.type === 'box' ? '<p class="combo-contents">' + line.ids.length + ' pouches · sealed box</p>' : ''}
             <strong class="item-price">${money(lineSubtotal(line))}</strong>
             <div class="cart-quantity">
               <button type="button" data-line-action="decrease" data-key="${line.key}" aria-label="Decrease ${name} quantity">${icon('minus')}</button>
@@ -70,7 +71,8 @@ export function initCartPage(root, notify) {
     await Promise.all(cards.map(async (card, index) => {
       const art = card.querySelector('.cart-item-art')
       const line = lines[index]
-      await flyPouch(productById[line.ids[0]], target.getBoundingClientRect(), art.getBoundingClientRect(), index * 110)
+      if (line.type === 'box') await flyBox(target.getBoundingClientRect(), art.getBoundingClientRect(), index * 110)
+      else await flyPouch(productById[line.ids[0]], target.getBoundingClientRect(), art.getBoundingClientRect(), index * 110)
       if (turn !== epoch) return
       card.dataset.unpacked = ''
       fillTrolley(trolley, lines.slice(index + 1))

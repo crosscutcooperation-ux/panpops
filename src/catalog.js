@@ -19,4 +19,4 @@ export const productUrl = product => '/shop/' + product.slug + '/'
 export const front = product => '/media/' + product.id + '.webp'
 export const back = product => '/media/' + product.id + '-back.webp'
 export const MIN_BOX = 2
-export const MAX_BOX = 4
+export const MAX_BOX = 6

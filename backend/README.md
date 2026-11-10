@@ -73,3 +73,5 @@ cargo test --locked
 Tests exercise server-priced totals, delivery thresholds, unavailable products, optimistic updates, duplicate order requests, a known HMAC vector, amount mismatch rejection, authorized versus captured payments, and repeated signed webhooks using a local mock payment provider.
 
 Live Razorpay operations require your account credentials and a deployed HTTPS service. Login and registration remain preview screens; this backend does not implement customer password authentication, account recovery, inventory, fulfilment, refunds, or tax invoicing. The age checkbox records a shopper declaration. The browser cart persists locally across pages and refreshes.
+
+Orders may include a `packages` array (`kind`, `ids`, `quantity`, and `capacity`). Four- and six-pouch boxes keep their packaging information in the saved order. The server validates that package contents exactly match the priced item quantities. Legacy clients may omit this array.
