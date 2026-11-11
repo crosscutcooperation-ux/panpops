@@ -6,3 +6,4 @@ dist/
 !.env.example
 backend/target/
 backend/data/
+rzp-key.csv
