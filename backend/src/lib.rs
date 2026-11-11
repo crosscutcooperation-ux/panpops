@@ -80,6 +80,7 @@ pub struct Config {
     pub database: String,
     pub frontend_dir: String,
     pub frontend_origin: Option<String>,
+    pub preview_only: bool,
     pub admin_token: String,
     pub razorpay_key: String,
     pub razorpay_secret: String,
@@ -93,18 +94,26 @@ impl Config {
         if admin_token.len() < 32 {
             return Err("Set ADMIN_TOKEN to a random value of at least 32 characters.".into());
         }
+        let preview_only = env::var("VERCEL").is_ok();
         let key = env::var("RAZORPAY_KEY_ID").unwrap_or_default();
         let secret = env::var("RAZORPAY_KEY_SECRET").unwrap_or_default();
-        if key.is_empty() != secret.is_empty() {
+        if !preview_only && key.is_empty() != secret.is_empty() {
             return Err("Set both Razorpay key ID and key secret, or leave both empty.".into());
         }
         Ok(Self {
             bind: env::var("BIND").unwrap_or_else(|_| "127.0.0.1:3001".into()),
-            database: env::var("DATABASE_PATH").unwrap_or_else(|_| "data/panpops.sqlite3".into()),
+            database: env::var("DATABASE_PATH").unwrap_or_else(|_| {
+                if preview_only {
+                    "/tmp/panpops.sqlite3".into()
+                } else {
+                    "data/panpops.sqlite3".into()
+                }
+            }),
             frontend_dir: env::var("FRONTEND_DIR").unwrap_or_else(|_| "../dist".into()),
             frontend_origin: env::var("FRONTEND_ORIGIN")
                 .ok()
                 .filter(|value| !value.is_empty()),
+            preview_only,
             admin_token,
             razorpay_key: key,
             razorpay_secret: secret,
@@ -114,7 +123,7 @@ impl Config {
     }
 
     fn payments_ready(&self) -> bool {
-        !self.razorpay_key.is_empty() && !self.razorpay_secret.is_empty()
+        !self.preview_only && !self.razorpay_key.is_empty() && !self.razorpay_secret.is_empty()
     }
 }
 
@@ -665,12 +674,20 @@ mod tests {
             database: ":memory:".into(),
             frontend_dir: "../dist".into(),
             frontend_origin: None,
+            preview_only: false,
             admin_token: "a-test-admin-token-with-32-characters".into(),
             razorpay_key: "rzp_test_example".into(),
             razorpay_secret: "test-payment-secret".into(),
             webhook_secret: "test-webhook-secret".into(),
             razorpay_base: base,
         }
+    }
+
+    #[test]
+    fn preview_mode_disables_payments_even_with_gateway_credentials() {
+        let mut config = settings("https://example.test".into());
+        config.preview_only = true;
+        assert!(!config.payments_ready());
     }
 
     fn signature(secret: &str, bytes: &[u8]) -> String {
