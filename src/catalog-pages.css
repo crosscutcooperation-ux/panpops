@@ -39,7 +39,7 @@
 .catalog-section .breadcrumbs{display:flex;gap:9px;align-items:center;font-size:.8rem;color:var(--muted);margin-bottom:19px}
 .catalog-section .breadcrumbs a{padding-block:7px;text-decoration:underline;text-underline-offset:3px}
 .catalog-section .product-layout,.catalog-section .box-layout{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.85fr);gap:clamp(25px,5vw,76px);align-items:center}
-body[data-page="product"] .catalog-section{background:var(--warm-wash)}
+body[data-page="product"] .catalog-section{background:linear-gradient(90deg,var(--product-wash-color) 0%,color-mix(in srgb,var(--product-wash-color) 28%,#fff) 35%,#fff 100%)}
 .catalog-section .product-stage{height:clamp(385px,45vw,570px);overflow:visible;border-radius:0;background:transparent;color:var(--ink)}
 .catalog-section .product-stage::before{background:none}
 .catalog-section .product-stage::after{content:none}

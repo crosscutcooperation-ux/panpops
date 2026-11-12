@@ -36,7 +36,6 @@ function home() {
     <section class="hero-video" aria-label="PanPops makhana production">
       <div class="hero-video-stage">
         <video class="hero-video-player" src="/media/makhana-production.mp4" autoplay muted loop playsinline preload="auto" aria-label="PanPops makhana production video"></video>
-        <span class="hero-video-mark-mask" aria-hidden="true"></span>
       </div>
     </section>
     <section id="products" class="flavour-crossing" aria-labelledby="crossing-heading">
@@ -122,7 +121,7 @@ export function renderPage(page = 'home', product) {
   const pages = {
     home,
     shop: () => '<div class="catalog-section">' + shopPage() + '</div>',
-    product: () => '<div class="catalog-section">' + productPage(product) + '</div>',
+    product: () => '<div class="catalog-section" style="--product-wash-color:' + product.stage + '">' + productPage(product) + '</div>',
     box: () => '<div class="catalog-section">' + boxPage() + '</div>',
     cart: cartPage,
     admin: adminPage,
