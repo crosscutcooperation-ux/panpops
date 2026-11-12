@@ -38,8 +38,6 @@ Vite proxies `/api` to port 3001. Leaving `VITE_API_BASE_URL` unset builds the b
 
 On a Rust-capable server, build the frontend with `VITE_API_BASE_URL=/api`, run `cargo build --release --locked` from `backend/`, and run `target/release/panpops-server` from that same directory with the environment configured. Keep it running with the host's process manager. Bind to loopback and place an HTTPS reverse proxy in front of port 3001. Configure request limits for the public order endpoint and restrict `/admin/` and `/api/admin/` to your operator access where possible. Keep SQLite on persistent disk, with one service instance per database file.
 
-The repository's Vercel configuration is for preview use only. Its Rust function uses SQLite under `/tmp`, which is temporary and not shared across instances; Razorpay payments are disabled on Vercel. Do not use it for production orders. Set a random `ADMIN_TOKEN` of at least 32 characters in Vercel's project environment settings if using the temporary admin API.
-
 The Rust server can serve the whole frontend. If your existing PHP host serves the static pages, proxy `/api/` to this service and serve the new `dist/` files for these pages. No existing PHP installation, domain, or Razorpay account has been changed by this work.
 
 For a separate frontend/API origin, build with `VITE_API_BASE_URL=https://YOUR-API-HOST/api` and set `FRONTEND_ORIGIN=https://YOUR-FRONTEND-HOST` on Rust. Use exact HTTPS origins, without a trailing path. Only the API URL is public frontend configuration; all secrets belong on the Rust server.

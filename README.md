@@ -28,14 +28,6 @@ The cart supports previously saved combo boxes. Motion has a still presentation 
 
 Follow [backend/README.md](backend/README.md) to run the Rust service and manage prices at `/admin/`. Follow [backend/RAZORPAY_SETUP.md](backend/RAZORPAY_SETUP.md) to connect Test Mode keys, configure capture and webhooks, test, and switch to Live Mode. The private review Site remains a browser-local demo until a separately hosted Rust API is configured in the frontend build.
 
-## Vercel preview
-
-The root `vercel.json` configures two services: the Vite storefront (`app`) and the Rust/Axum API (`backend`). The storefront is public on all non-API paths, while `/api/*` is routed to the backend. No service binding is needed because browser requests use the public same-origin `/api` route.
-
-This Vercel setup is preview-only. Vercel function instances use SQLite at `/tmp/panpops.sqlite3`; the file is temporary and isolated to each warm instance, so prices and orders can reset or differ between instances. Razorpay payments are disabled automatically on Vercel. Do not use this deployment to accept real orders or payments. For production, move the backend to durable shared storage before enabling checkout.
-
-Set `ADMIN_TOKEN` in the Vercel project environment settings to a random value of at least 32 characters to use the temporary admin API. Do not commit the token or Razorpay credentials.
-
 ## Source
 
 `src/templates.js` and `src/commerce-templates.js` render the pages. `src/cart.js` is the shared cart store. `src/trolley-motion.js` provides the shared trolley presentation and pouch effects. The original Three.js pouch models remain in `src/scenes.js`.

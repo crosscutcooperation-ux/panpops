@@ -7,4 +7,3 @@ dist/
 backend/target/
 backend/data/
 rzp-key.csv
-.vercel
