@@ -188,9 +188,6 @@ function initCrossing(stage) {
   render()
 }
 
-document.querySelectorAll('[data-future-page]').forEach(button => {
-  button.addEventListener('click', () => notify(button.textContent + ' is coming soon.'))
-})
 async function startStore() {
   try { await loadCatalogue() }
   catch (error) { notify('Live prices are unavailable. ' + error.message) }

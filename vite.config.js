@@ -12,6 +12,8 @@ const routes = {
   '/register/index.html': ['register', 'Create an account'],
   '/shop/index.html': ['shop', 'Our products'],
   '/build-a-box/index.html': ['box', 'Build a box'],
+  '/about/index.html': ['about', 'About PanPops'],
+  '/contact/index.html': ['contact', 'Contact PanPops'],
   ...Object.fromEntries(products.map(product => ['/shop/' + product.slug + '/index.html', ['product', product.name, product]])),
 }
 

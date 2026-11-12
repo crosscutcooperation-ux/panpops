@@ -4,12 +4,33 @@
   background: radial-gradient(ellipse at 50% 53%, #f9ecce 6%, #e8d4b5 62%, #d9b993 100%);
 }
 .hero-video-stage {
+  position: relative;
+  container-type: size;
   width: 100%;
   height: 100%;
   overflow: hidden;
   background: #251b17;
 }
 .hero-video-player { display: block; width: 100%; height: 100%; object-fit: cover; }
+.hero-video-mark-mask {
+  --mask-size: clamp(42px, 3.5vw, 58px);
+  position: absolute;
+  left: calc(91% - var(--mask-size) / 2);
+  top: calc(50% + 19.14cqw - var(--mask-size) / 2);
+  width: var(--mask-size);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, #f8f0dcbb 0%, #f8f0dc79 48%, #f8f0dc00 78%);
+  -webkit-backdrop-filter: blur(7px) brightness(1.13);
+  backdrop-filter: blur(7px) brightness(1.13);
+  pointer-events: none;
+}
+@container (max-aspect-ratio: 16 / 9) {
+  .hero-video-mark-mask {
+    left: calc(50% + 72.92cqh - var(--mask-size) / 2);
+    top: calc(84.03% - var(--mask-size) / 2);
+  }
+}
 .crossing-heading {
   min-height: 108px;
   display: flex;

@@ -64,7 +64,7 @@ function studio(host, canvas, context, options = {}) {
   resize()
 
   return {
-    world, camera, key, rim, invalidate,
+    world, camera, invalidate,
     get width() { return viewportWidth },
     animate(fn) { renderFrame = fn; invalidate() },
     onResize(fn) { onResize = fn },
@@ -162,102 +162,6 @@ function pedestal(radius, product) {
   }
 }
 
-function seedGeometry() {
-  const shape = new T.IcosahedronGeometry(1, 3)
-  const position = shape.attributes.position
-  for (let index = 0; index < position.count; index++) {
-    const x = position.getX(index)
-    const y = position.getY(index)
-    const z = position.getZ(index)
-    const variation = 1 + .10 * Math.sin(x * 8 + y * 5) + .074 * Math.cos(z * 11 - x * 8) + .035 * Math.sin(y * 23 + z * 19)
-    position.setXYZ(index, x * variation, y * .84 * variation, z * .91 * variation)
-  }
-  shape.computeVertexNormals()
-  return shape
-}
-
-function seedMaterials() {
-  return ['#fae1ab', '#edc489', '#f5d5a0', '#dfab72'].map(color =>
-    new T.MeshStandardMaterial({ color, roughness: .87 })
-  )
-}
-
-function scatteredSeeds(group, geometry, materials, positions) {
-  positions.forEach(([x, y, z, size], index) => {
-    const seed = new T.Mesh(geometry, materials[index % materials.length])
-    seed.position.set(x, y, z)
-    seed.rotation.set(index * .6, index * 1.4, index * .76)
-    seed.scale.setScalar(size)
-    group.add(seed)
-  })
-}
-
-function stageSeeds(group) {
-  scatteredSeeds(group, seedGeometry(), seedMaterials(), [
-    [-1.04,-.96,.35,.087],[-.9,-.97,.55,.061],[-.73,-1,.67,.062],[-1.14,-.98,.1,.052],
-    [.95,-.98,.33,.085],[.75,-.98,.64,.058],[1.04,-.97,.17,.047],[1.12,-.94,.31,.045],
-  ])
-}
-
-function onionProps(world) {
-  const inner = new T.MeshStandardMaterial({ color: '#eee3bd', roughness: .74 })
-  const edge = new T.MeshStandardMaterial({ color: '#af809c', roughness: .7 })
-  for (const [index, side] of [-1, 1, -1, 1].entries()) {
-    const curve = new T.CatmullRomCurve3(Array.from({ length: 24 }, (_, point) => {
-      const angle = point / 23 * Math.PI * 1.35 + .18
-      const size = .21 + index * .033
-      return new T.Vector3(Math.cos(angle) * size, Math.sin(angle) * size * .78, Math.sin(angle * .8) * .06)
-    }))
-    const ribbon = new T.Mesh(new T.TubeGeometry(curve, 30, .018, 6, false), index % 2 ? inner : edge)
-    ribbon.position.set(side * (.9 + (index % 3) * .1), -.79 + index * .07, .24 - index * .045)
-    ribbon.rotation.set(-.4 + index * .16, side * .28, side * .42)
-    ribbon.scale.set(1.03, 1.38, 1)
-    world.add(ribbon)
-  }
-}
-
-function saltProps(world) {
-  const geometry = new T.IcosahedronGeometry(1, 0)
-  const colors = ['#f6dfcf', '#eeb3aa', '#ffd7d0'].map(color => new T.MeshStandardMaterial({ color, roughness: .8, flatShading: true }))
-  for (let i = 0; i < 22; i++) {
-    const stone = new T.Mesh(geometry, colors[i % colors.length])
-    const side = i % 2 === 0 ? -1 : 1
-    stone.position.set(side * (.69 + (i % 7) * .065), -1.01 + (i % 3) * .035, .24 + (i % 8) * .058)
-    stone.rotation.set(i * .67, i * .33, i * .15)
-    stone.scale.setScalar(.028 + (i % 5) * .013)
-    world.add(stone)
-  }
-}
-
-function popEffect(world) {
-  const geometry = seedGeometry()
-  const material = seedMaterials()
-  const dust = new T.MeshStandardMaterial({ color: '#e88643', roughness: .95 })
-  const group = new T.Group()
-  group.visible = false
-  const particles = Array.from({ length: 58 }, (_, i) => {
-    const crumb = i > 19
-    const mesh = new T.Mesh(geometry, crumb ? dust : material[i % material.length])
-    const angle = i * 2.39996
-    const reach = .6 + (i % 9) * .082
-    group.add(mesh)
-    return { mesh, angle, reach, scale: crumb ? .012 + i % 4 * .004 : .054 + i % 6 * .008, delay: (i % 7) * .021 }
-  })
-  world.add(group)
-  return function draw(t) {
-    group.visible = t >= 0 && t < 1
-    if (!group.visible) return
-    for (const { mesh, angle, reach, scale, delay } of particles) {
-      const life = T.MathUtils.clamp((t - delay) / (1 - delay), 0, 1)
-      const wave = angle + life * 2.5
-      const distance = ease(life) * reach
-      mesh.position.set(Math.cos(wave) * distance * 1.23, .43 + Math.sin(wave) * distance * .62 + Math.sin(life * Math.PI) * .41 - life * life * .8, .46 + Math.sin(wave) * .27)
-      mesh.rotation.set(life * 6 + angle, life * 5, angle + life * 3)
-      mesh.scale.setScalar(scale * Math.min(1, life * 19) * (1 - life ** 3))
-    }
-  }
-}
-
 export async function createProduct(host, canvas, context, product) {
   const pouch = await pack(product)
   const scene = studio(host, canvas, context, { height: 2.93, minWidth: 2.72 })
@@ -266,11 +170,6 @@ export async function createProduct(host, canvas, context, product) {
   deck.root.position.y = -1.02
   pouch.position.y = .077
   scene.world.add(deck.root, pouch)
-  if (product.id === 'cream') onionProps(scene.world)
-  else if (product.id === 'salt') saltProps(scene.world)
-  else stageSeeds(scene.world)
-  if (product.id === 'peri') scene.rim.color.set('#ef6350')
-  const drawPop = product.id === 'chataka' ? popEffect(scene.world) : () => {}
 
   let yaw = -.09
   let pitch = -.035
@@ -278,7 +177,6 @@ export async function createProduct(host, canvas, context, product) {
   let targetPitch = pitch
   let dragYaw = yaw
   let dragPitch = pitch
-  let poppedAt = 0
   let playing = true
   let dragging = false
   let resumeAt = 0
@@ -292,13 +190,9 @@ export async function createProduct(host, canvas, context, product) {
     const rotationActive = Math.abs(targetYaw - yaw) > .002 || Math.abs(targetPitch - pitch) > .002
     yaw = rotationActive ? mix(yaw, targetYaw, .19) : targetYaw
     pitch = rotationActive ? mix(pitch, targetPitch, .19) : targetPitch
-    const popTime = poppedAt ? (now - poppedAt) / 1080 : -1
-    drawPop(popTime)
-    const bounce = popTime >= 0 && popTime < 1 ? Math.sin(popTime * Math.PI * 3) * (1 - popTime) : 0
-    pouch.rotation.set(pitch, yaw, -.035 - bounce * .075)
-    pouch.position.y = .077 + bounce * .14
-    if (popTime >= 1) poppedAt = 0
-    return playing || rotationActive || !!poppedAt
+    pouch.rotation.set(pitch, yaw, -.035)
+    pouch.position.y = .077
+    return playing || rotationActive
   })
 
   return {
@@ -323,7 +217,6 @@ export async function createProduct(host, canvas, context, product) {
       scene.invalidate()
     },
     endDrag() { dragging = false; resumeAt = performance.now() + 2200; scene.invalidate() },
-    pop() { poppedAt = performance.now(); scene.invalidate() },
     dispose: scene.dispose,
   }
 }

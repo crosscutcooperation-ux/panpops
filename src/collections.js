@@ -242,15 +242,6 @@ function initProduct(root) {
   stage.querySelector('[data-drag-hint]').hidden = false
   chooseQuantity(1)
 
-  root.querySelector('[data-pop]')?.addEventListener('click', () => {
-    const scene = getScene()
-    if (scene) scene.pop()
-    else if (!motion.matches) {
-      const effect = stage.querySelector('.pop-still')
-      effect.classList.remove('is-popping')
-      requestAnimationFrame(() => requestAnimationFrame(() => effect.classList.add('is-popping')))
-    } else notify('A tangy burst of roasted makhana.')
-  })
 }
 
 function initBox(root) {

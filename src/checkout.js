@@ -90,12 +90,12 @@ export function initCheckoutPage(root) {
 
   function renderReceipt(lines, quote, scanned) {
     const visibleLines = scanned ? lines.filter(line => scanned.has(line.key)) : lines
-    root.querySelector('[data-checkout-items]').innerHTML = visibleLines.map(line => '<li><span>' + (line.type === 'box' ? boxButton(line) : '') + line.quantity + ' × ' + nameOf(line) + '</span><strong>' + money(lineSubtotal(line)) + '</strong></li>').join('')
+    root.querySelector('[data-checkout-items]').innerHTML = visibleLines.map(line => '<li><span>' + (line.type === 'box' ? boxButton(line) : '') + line.quantity + ' × ' + nameOf(line) + '</span><strong>' + (quote ? money(lineSubtotal(line)) : '—') + '</strong></li>').join('')
     const done = !scanned || scanned.size === lines.length
-    const scannedAmount = Math.round(subtotal(visibleLines) * 100)
-    root.querySelector('[data-checkout-subtotal]').textContent = rupees(scannedAmount)
-    root.querySelector('[data-checkout-shipping]').textContent = done ? rupees(quote.shipping_paise) : '—'
-    root.querySelector('[data-checkout-total]').textContent = rupees(done ? quote.total_paise : scannedAmount)
+    const scannedAmount = quote ? Math.round(subtotal(visibleLines) * 100) : null
+    root.querySelector('[data-checkout-subtotal]').textContent = quote ? rupees(scannedAmount) : '—'
+    root.querySelector('[data-checkout-shipping]').textContent = quote && done ? rupees(quote.shipping_paise) : '—'
+    root.querySelector('[data-checkout-total]').textContent = quote ? rupees(done ? quote.total_paise : scannedAmount) : '—'
   }
 
   async function packSelection() {
@@ -103,9 +103,23 @@ export function initCheckoutPage(root) {
     const lines = getCart()
     setEmptyState(lines)
     if (!lines.length) return
-    const quote = await currentQuote(lines)
-    if (epoch !== packingEpoch) return
     const scanned = new Set()
+    let quote = null
+    let quoteError
+    let scanComplete = false
+    const quotePromise = currentQuote(lines).then(result => {
+      if (epoch !== packingEpoch) return result
+      quote = result
+      renderReceipt(lines, quote, scanned)
+      if (scanComplete) status.textContent = 'All items scanned.'
+      return result
+    }).catch(error => {
+      if (epoch !== packingEpoch) return null
+      quoteError = error
+      detailsMessage.textContent = error.message
+      if (scanComplete) status.textContent = 'All items scanned. Live prices are unavailable.'
+      return null
+    })
     renderReceipt(lines, quote, scanned)
     lineup.innerHTML = lines.map(line => '<div class="packing-item"><img src="' + parcelImage(line) + '" alt=""></div>').join('')
     lineup.hidden = false
@@ -133,7 +147,9 @@ export function initCheckoutPage(root) {
       if (epoch !== packingEpoch) return
       scanned.add(line.key)
       renderReceipt(lines, quote, scanned)
-      root.querySelector('[data-scanned-amount]').textContent = money(subtotal(lines.filter(candidate => scanned.has(candidate.key))))
+      root.querySelector('[data-scanned-amount]').textContent = quote
+        ? money(subtotal(lines.filter(candidate => scanned.has(candidate.key))))
+        : '—'
       delete scanner.dataset.scanning
       const start = scannerImage.getBoundingClientRect()
       scannerImage.hidden = true
@@ -144,10 +160,15 @@ export function initCheckoutPage(root) {
       status.textContent = 'Scanned ' + (index + 1) + ' of ' + lines.length
     }
 
+    scanComplete = true
     fillTrolley(trolley, lines)
     scene.dataset.phase = 'packed'
     lineup.hidden = true
-    status.textContent = 'All items scanned.'
+    status.textContent = quote
+      ? 'All items scanned.'
+      : quoteError
+        ? 'All items scanned. Live prices are unavailable.'
+        : 'All items scanned. Checking live prices…'
   }
 
   function finish(orderId) {

@@ -2,7 +2,7 @@ import { products, productById, combos, money, productUrl, front, back, MAX_BOX 
 import { icon } from './icons.js'
 
 export const productStyle = product => '--accent:' + product.accent + ';--stage:' + product.stage + ';--light:' + product.light + ';--packet:' + product.pack
-const eyebrow = label => '<p class="eyebrow"><span></span>' + label + '</p>'
+const eyebrow = label => '<p class="eyebrow">' + label + '</p>'
 
 function packImage(product, className = '', lazy = false) {
   return '<img class="' + className + '" src="' + front(product) + '" width="680" height="925" alt="' + product.name + ' PanPops pouch"' + (lazy ? ' loading="lazy"' : '') + '>'
@@ -33,14 +33,12 @@ function shopSelection(standalone = false, recommendedFor = null) {
           ${items.map((item, index) => {
             const product = productById[item.ids[0]]
             return `<article class="shop-item" data-category="${item.category}" style="${productStyle(product)}">
-              <div class="shop-display" data-display="${item.ids.join(',')}" aria-label="${item.name} rotating product display">
+              <a class="shop-display" href="${item.url}" data-display="${item.ids.join(',')}" aria-label="Open ${item.name}">
                 <span class="display-number">${String(index + 1).padStart(2, '0')}</span>
-                <span class="display-pack">PACK OF ${item.ids.length}</span>
-                <div class="display-orbit" aria-hidden="true"></div>
+                ${item.ids.length > 1 ? `<span class="display-pack">PACK OF ${item.ids.length}</span>` : ''}
                 <div class="display-stills display-count-${item.ids.length}" aria-hidden="true">${item.ids.map(id => packImage(productById[id], '', true)).join('')}</div>
                 <div class="display-plinth" aria-hidden="true"></div>
-                <a class="display-link" href="${item.url}" aria-label="Explore ${item.name}">View</a>
-              </div>
+              </a>
               <div class="shop-item-copy">
                 <p class="studio-kicker">${item.ids.length === 1 ? 'ROASTED MAKHANA / 50 G' : item.ids.length + ' FLAVOURS / ' + item.ids.length * 50 + ' G'}</p>
                 <h3><a href="${item.url}">${item.name}</a></h3>
@@ -50,12 +48,10 @@ function shopSelection(standalone = false, recommendedFor = null) {
             </article>`
           }).join('')}
           <article class="shop-item shop-custom" data-category="custom" style="--accent:#876044;--stage:#78513b;--light:#bc9366">
-            <div class="shop-display custom-display" data-display="box" aria-label="Build your own snack box display">
+            <a class="shop-display custom-display" href="/build-a-box/" data-display="box" aria-label="Open the build your own snack box page">
               <span class="display-number">10</span><span class="display-pack">YOUR MIX</span>
-              <div class="display-orbit" aria-hidden="true"></div>
               <div class="custom-box-still" aria-hidden="true"><div>${products.map(product => packImage(product, '', true)).join('')}</div></div>
-              <a class="display-link" href="/build-a-box/" aria-label="Build your own box">View</a>
-            </div>
+            </a>
             <div class="shop-item-copy"><p class="studio-kicker">2–6 POUCHES / ALL YOUR FAVOURITES</p><h3><a href="/build-a-box/">Build a box</a></h3><p class="shop-item-note">A little spicy. A little creamy. Entirely yours.</p><div class="shop-item-buy"><span>From <b data-selection-price="minimum-box">${money(Math.min(...products.map(product => product.price)) * 2)}</b></span><a href="/build-a-box/" aria-label="Choose your box flavours">${icon('plus')}</a></div></div>
           </article>
         </div>
@@ -69,18 +65,14 @@ export function shopPage() {
 }
 
 export function productPage(product) {
-  const number = products.indexOf(product) + 1
   return `
     <section class="shell inner-page product-page" data-product="${product.id}" style="${productStyle(product)}">
       <div class="breadcrumbs"><a href="/shop/">Shop</a><span>/</span><span>${product.name}</span></div>
       <div class="product-layout">
         <div class="product-stage stage" data-stage>
-          <div class="stage-id"><span></span> FLAVOUR NO. 0${number}</div>
-          <div class="stage-rings" aria-hidden="true"></div>
-          <div class="stage-floor" aria-hidden="true"></div>
+          <div class="product-disc" aria-hidden="true"></div>
           <div class="product-stills">${packImage(product, 'product-front')}<img class="product-back" src="${back(product)}" width="946" height="1500" alt="${product.name} back-of-pack label" hidden></div>
           <div class="scene-host" data-scene aria-hidden="true"></div>
-          <div class="pop-still" aria-hidden="true">${Array.from({ length: 13 }, (_, index) => '<i style="--i:' + index + '"></i>').join('')}</div>
           <button class="motion-toggle product-motion" type="button" data-product-motion aria-pressed="true">${icon('spin')} Rotation <span>on</span></button>
           <span class="stage-hint" data-drag-hint hidden>${icon('spin')} DRAG TO ROTATE</span>
         </div>
@@ -107,7 +99,6 @@ export function productPage(product) {
           </div>
           <div class="product-actions">
             <button class="button secondary" type="button" data-flip aria-expanded="false">${icon('spin')} View back of pack</button>
-            ${product.id === 'chataka' ? '<button class="button secondary pop-button" type="button" data-pop>' + icon('spark') + ' Pop the pack</button>' : ''}
           </div>
           <div class="label-panel" data-label-panel hidden>
             <a href="${back(product)}" target="_blank" rel="noopener">Open full-size label </a>
@@ -139,7 +130,7 @@ export function boxPage(embedded = false) {
             </div>`).join('')}</div>
           <div class="summary-line"><span>Box subtotal</span><strong data-box-total>₹0</strong></div>
           <p class="box-status" data-box-status role="status">Choose at least 2 pouches.</p>
-      <fieldset class="box-size"><legend>Box size</legend><label><input type="radio" name="box-size" value="4" checked>4 pouches</label><label><input type="radio" name="box-size" value="6">6 pouches</label></fieldset>
+      <fieldset class="box-size"><legend>Box size</legend><label><input type="radio" name="box-size" value="4" checked><span>4 pouches</span></label><label><input type="radio" name="box-size" value="6"><span>6 pouches</span></label></fieldset>
           <button class="button" type="button" data-add-box disabled>Close box & add to cart</button>
         </div>
       </div>
