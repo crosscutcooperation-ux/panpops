@@ -32,12 +32,21 @@ function header() {
 
 function home() {
   return `
-    <section class="hero-placeholder" aria-label="PanPops roasted makhana">
-      <img src="${front(products[0])}" width="680" height="925" alt="PanPops Chataka Pataka roasted makhana pouch" fetchpriority="high">
+    <section class="hero" aria-labelledby="hero-heading">
+      <video class="hero-video" data-hero-video autoplay muted loop playsinline preload="metadata" aria-label="Animated PanPops makhana production">
+        <source src="/media/makhana-production.mp4" type="video/mp4">
+      </video>
+      <div class="hero-shade" aria-hidden="true"></div>
+      <div class="hero-content shell">
+        <p class="hero-eyebrow">PanPops · Roasted makhana</p>
+        <h1 id="hero-heading">Meet your next favourite crunch.</h1>
+        <a class="hero-link" href="#products">Explore our flavours <span aria-hidden="true">↓</span></a>
+      </div>
+      <button class="hero-video-toggle" type="button" data-video-toggle aria-label="Pause production video">Pause video</button>
     </section>
     <section id="products" class="flavour-crossing" aria-labelledby="crossing-heading">
       <div class="crossing-heading shell">
-        <h1 id="crossing-heading">Pick your crunch.</h1>
+        <h2 id="crossing-heading">Pick your crunch.</h2>
         <p>Tap a pouch to add it to your cart.</p>
       </div>
       <div class="crossing-stage" data-crossing>

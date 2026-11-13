@@ -241,8 +241,35 @@ function initCart() {
   render()
 }
 
+function initHeroVideo() {
+  const video = document.querySelector('[data-hero-video]')
+  const toggle = document.querySelector('[data-video-toggle]')
+
+  function syncToggle() {
+    const playing = !video.paused
+    toggle.textContent = playing ? 'Pause video' : 'Play video'
+    toggle.setAttribute('aria-label', playing ? 'Pause production video' : 'Play production video')
+  }
+
+  if (motion.matches) video.pause()
+  video.addEventListener('play', syncToggle)
+  video.addEventListener('pause', syncToggle)
+  motion.addEventListener('change', event => {
+    if (event.matches) video.pause()
+  })
+  toggle.addEventListener('click', () => {
+    if (video.paused) {
+      video.play().catch(() => notify('The production video could not be played.'))
+    } else {
+      video.pause()
+    }
+  })
+  syncToggle()
+}
+
 document.querySelectorAll('[data-future-page]').forEach(button => {
   button.addEventListener('click', () => notify(button.textContent + ' is coming soon.'))
 })
+initHeroVideo()
 initCrossing(document.querySelector('[data-crossing]'))
 initCart()
