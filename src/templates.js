@@ -34,9 +34,9 @@ function header(page) {
 
 function home() {
   return `
-    <section class="hero-video" aria-label="PanPops makhana production">
-      <div class="hero-video-stage">
-        <video class="hero-video-player" src="/media/makhana-production.mp4" autoplay muted loop playsinline preload="auto" aria-label="PanPops makhana production video"></video>
+    <section class="hero-image" aria-label="PanPops roasted makhana">
+      <div class="hero-image-stage">
+        <img class="hero-image-pack" src="/media/chataka.webp" width="680" height="925" alt="PanPops Chataka Pataka roasted makhana pouch" fetchpriority="high" decoding="async">
       </div>
     </section>
     <section id="products" class="flavour-crossing" aria-labelledby="crossing-heading">
