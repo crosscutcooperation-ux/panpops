@@ -127,7 +127,7 @@ export function renderPage(page = 'home', product) {
     cart: cartPage,
     admin: adminPage,
     account: myAccountPage,
-    combo: () => '<div class="catalog-section">' + comboPage(product) + '</div>',
+    combo: () => '<div class="catalog-section" style="--product-wash-color:' + products.find(item => item.id === product.ids[0]).stage + '">' + comboPage(product) + '</div>',
     checkout: checkoutPage,
     login: () => accountPage('login'),
     register: () => accountPage('register'),

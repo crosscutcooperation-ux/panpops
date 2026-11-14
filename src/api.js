@@ -47,8 +47,9 @@ export function orderItems(lines) {
   return [...quantities].map(([id, quantity]) => ({ id, quantity }))
 }
 
-export async function quoteCart(lines) {
-  if (backendEnabled) return jsonRequest('quote', { items: orderItems(lines) })
+export async function quoteCart(lines, couponCode = '') {
+  if (backendEnabled) return jsonRequest('quote', { items: orderItems(lines), coupon_code: couponCode })
+  if (couponCode) throw new Error('Connect the storefront server to validate a coupon.')
   const subtotal = lines.reduce((sum, line) => sum + (line.type === 'combo' ? Math.round(comboById[line.comboId].price * 100) : line.ids.reduce((value, id) => value + Math.round(productById[id].price * 100), 0)) * line.quantity, 0)
-  return { subtotal_paise: subtotal, shipping_paise: 0, total_paise: subtotal, currency: 'INR' }
+  return { subtotal_paise: subtotal, discount_paise: 0, coupon_code: '', shipping_paise: 0, total_paise: subtotal, currency: 'INR' }
 }

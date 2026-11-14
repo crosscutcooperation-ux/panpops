@@ -229,13 +229,19 @@ async fn catalogue(State(state): State<Arc<AppState>>) -> ApiResult<Json<Value>>
 #[serde(deny_unknown_fields)]
 struct QuoteRequest {
     items: Vec<store::Item>,
+    #[serde(default)]
+    coupon_code: String,
 }
 
 async fn quote(
     State(state): State<Arc<AppState>>,
     Json(body): Json<QuoteRequest>,
 ) -> ApiResult<Json<store::Quote>> {
-    Ok(Json(store::quote(&*state.connection()?, &body.items)?))
+    Ok(Json(store::quote_with_coupon(
+        &*state.connection()?,
+        &body.items,
+        &body.coupon_code,
+    )?))
 }
 
 fn authorize(headers: &HeaderMap, expected: &str) -> ApiResult<()> {
@@ -456,6 +462,8 @@ struct OrderRequest {
     customer: Customer,
     over14: bool,
     expected_total_paise: i64,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    coupon_code: String,
 }
 
 fn order_response(order: &store::Order, key_id: &str) -> Value {
@@ -510,7 +518,7 @@ async fn create_order(
             }
             return Ok(Json(order_response(&existing, &state.config.razorpay_key)));
         }
-        let quote = store::quote(&tx, &body.items)?;
+        let quote = store::quote_with_coupon(&tx, &body.items, &body.coupon_code)?;
         if quote.total_paise != body.expected_total_paise {
             return Err(AppError::conflict(
                 "Prices or delivery charges changed. Review your order again.",

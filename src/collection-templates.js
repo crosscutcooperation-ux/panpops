@@ -12,7 +12,7 @@ function shopSelection(standalone = false, recommendedFor = null) {
   const items = [
     ...products.map(product => ({ ...product, ids: [product.id], category: 'single', url: productUrl(product), note: product.note })),
     ...combos.map(combo => ({ ...combo, category: 'combo' + combo.ids.length, url: '/shop/combos/' + combo.id + '/', note: combo.ids.map(id => productById[id].name).join(' + ') })),
-  ].filter(item => !recommendedFor || item.ids.length !== 1 || item.ids[0] !== recommendedFor.id)
+  ].filter(item => !recommendedFor || item.id !== recommendedFor.id)
   const filters = [['all', 'Show all'], ['single', 'Single packs'], ['combo2', '2-pack combos'], ['combo3', '3-pack combos'], ['combo4', '4-pack combo'], ['custom', 'Build your own']]
   const headingId = recommendedFor ? 'recommended-heading' : 'shop-heading'
   const heading = recommendedFor ? 'Recommended for you' : 'Our products'
@@ -65,18 +65,20 @@ export function shopPage() {
 }
 
 export function comboPage(combo) {
-  const product = productById[combo.ids[0]]
-  return `<section class="shell inner-page combo-detail" data-shop style="${productStyle(product)}"><div class="breadcrumbs"><a href="/shop/">Products</a><span>/</span><span>${combo.name}</span></div><div class="combo-detail-layout"><div class="shop-grid" data-shop-grid><div class="shop-canvas" data-shop-canvas aria-hidden="true"></div><article class="shop-item" data-category="combo"><div class="shop-display" data-display="${combo.ids.join(',')}" aria-label="${combo.name} rotating pouches"><div class="display-stills display-count-${combo.ids.length}">${combo.ids.map(id => packImage(productById[id])).join('')}</div></div></article></div><div><p class="eyebrow">FIXED COMBO / ${combo.ids.length * 50} G</p><h1>${combo.name}</h1><p>${combo.ids.map(id => productById[id].name).join(' + ')}</p><p>A ready-made mix for your snack shelf. Enjoy one 50 g pouch of each flavour shown.</p><strong class="combo-detail-price" data-combo-price="${combo.id}">${money(combo.price)}</strong><button class="button" data-shop-add="${combo.ids.join(',')}" data-combo-id="${combo.id}">Add combo to cart</button><button class="motion-toggle" data-shop-motion aria-pressed="true">Rotation <span>on</span></button><a class="text-link" href="/build-a-box/">Prefer your own mix? Build a custom box</a></div></div></section>`
+  return productPage(combo)
 }
 
-export function productPage(product) {
+export function productPage(selection) {
+  const combo = Boolean(selection.ids)
+  const product = combo ? { ...productById[selection.ids[0]], ...selection, weight: selection.ids.length * 50, note: 'A ready-made flavour mix', description: selection.ids.map(id => productById[id].name).join(' + ') + '. One 50 g pouch of each flavour.' } : selection
+  const unit = combo ? 'combo' : 'pouch'
   return `
-    <section class="shell inner-page product-page" data-product="${product.id}" style="${productStyle(product)}">
+    <section class="shell inner-page product-page ${combo ? 'combo-product-page' : ''}" data-product="${product.id}" style="${productStyle(product)};--pack-count:${combo ? selection.ids.length : 1}">
       <div class="breadcrumbs"><a href="/shop/">Shop</a><span>/</span><span>${product.name}</span></div>
       <div class="product-layout">
         <div class="product-stage stage" data-stage>
           <div class="product-disc" aria-hidden="true"></div>
-          <div class="product-stills">${packImage(product, 'product-front')}<img class="product-back" src="${back(product)}" width="946" height="1500" alt="${product.name} back-of-pack label" hidden></div>
+          <div class="product-stills">${combo ? '<div class="product-front combo-stills">' + selection.ids.map(id => packImage(productById[id])).join('') + '</div><div class="product-back combo-stills" hidden>' + selection.ids.map(id => '<img src="' + back(productById[id]) + '" alt="' + productById[id].name + ' back-of-pack label">').join('') + '</div>' : packImage(product, 'product-front') + '<img class="product-back" src="' + back(product) + '" width="946" height="1500" alt="' + product.name + ' back-of-pack label" hidden>'}</div>
           <div class="scene-host" data-scene aria-hidden="true"></div>
           <button class="motion-toggle product-motion" type="button" data-product-motion aria-pressed="true">${icon('spin')} Rotation <span>on</span></button>
           <span class="stage-hint" data-drag-hint hidden>${icon('spin')} DRAG TO ROTATE</span>
@@ -85,15 +87,15 @@ export function productPage(product) {
           ${eyebrow(product.note.toUpperCase())}
           <h1>${product.name}</h1>
           <p class="product-description">${product.description}</p>
-          <p class="price-line"><strong data-unit-price="${product.id}">${money(product.price)}</strong><span>${product.weight} g pouch</span></p>
+          <p class="price-line"><strong ${combo ? 'data-combo-price' : 'data-unit-price'}="${product.id}">${money(product.price)}</strong><span>${product.weight} g ${unit}${combo ? ' · ' + selection.ids.length + ' pouches' : ''}</span></p>
           <div class="quantity-options">
             <p class="studio-kicker">CHOOSE YOUR QUANTITY</p>
-            <div class="quantity-presets" role="group" aria-label="Choose pouch quantity">
-              ${[1, 2, 3, 4].map(quantity => `<button type="button" data-quantity-preset="${quantity}" aria-label="${quantity} ${quantity === 1 ? 'pouch' : 'pouches'}" aria-pressed="${quantity === 1}">×${quantity}</button>`).join('')}
-              <a class="quantity-combo" href="/build-a-box/?mix=${product.id},${product.id}">Make a combo </a>
+            <div class="quantity-presets" role="group" aria-label="Choose ${unit} quantity">
+              ${[1, 2, 3, 4].map(quantity => `<button type="button" data-quantity-preset="${quantity}" aria-label="${quantity} ${unit}${quantity === 1 ? '' : 's'}" aria-pressed="${quantity === 1}">×${quantity}</button>`).join('')}
+              <a class="quantity-combo" href="/build-a-box/${combo ? '' : '?mix=' + product.id + ',' + product.id}">${combo ? 'Make your own mix' : 'Make a combo'}</a>
             </div>
           </div>
-          <p class="quantity-summary" data-quantity-summary role="status" aria-live="polite">1 pouch · ${product.weight} g total <strong data-unit-price="${product.id}">${money(product.price)}</strong></p>
+          <p class="quantity-summary" data-quantity-summary role="status" aria-live="polite">1 ${unit} · ${product.weight} g total <strong>${money(product.price)}</strong></p>
           <div class="product-buy">
             <div class="stepper" aria-label="Quantity">
               <button type="button" data-quantity="-1" aria-label="Decrease quantity" disabled>${icon('minus')}</button>
@@ -103,10 +105,10 @@ export function productPage(product) {
             <button class="button" type="button" data-add="${product.id}">${icon('bag')} Add to cart <span data-add-total>${money(product.price)}</span></button>
           </div>
           <div class="product-actions">
-            <button class="button secondary" type="button" data-flip aria-expanded="false">${icon('spin')} View back of pack</button>
+            <button class="button secondary" type="button" data-flip aria-expanded="false">${icon('spin')} ${combo ? 'View backs of packs' : 'View back of pack'}</button>
           </div>
           <div class="label-panel" data-label-panel hidden>
-            <a href="${back(product)}" target="_blank" rel="noopener">Open full-size label </a>
+            ${(combo ? selection.ids.map(id => productById[id]) : [product]).map(item => '<a href="' + back(item) + '" target="_blank" rel="noopener">Open ' + item.name + ' label</a>').join('')}
           </div>
           <a class="text-link" href="/build-a-box/">Mix it into a box </a>
         </div>
@@ -136,6 +138,7 @@ export function boxPage(embedded = false) {
           <div class="summary-line"><span>Box subtotal</span><strong data-box-total>₹0</strong></div>
           <p class="box-status" data-box-status role="status">Choose at least 2 pouches.</p>
       <fieldset class="box-size"><legend>Box size</legend><label><input type="radio" name="box-size" value="4" checked><span>4 pouches</span></label><label><input type="radio" name="box-size" value="6"><span>6 pouches</span></label></fieldset>
+          <p class="box-disclaimer">The box shown is for visual demonstration only. Your order includes the selected pouches; a physical box is not included.</p>
           <button class="button" type="button" data-add-box disabled>Close box & add to cart</button>
         </div>
       </div>

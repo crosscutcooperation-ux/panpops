@@ -174,9 +174,18 @@ function pedestal(radius, product) {
 }
 
 export async function createProduct(host, canvas, context, product) {
-  const pouch = await pack(product)
-  const scene = studio(host, canvas, context, { height: 2.93, minWidth: 2.72 })
-  const deck = pedestal(product.id === 'salt' ? 1.03 : 1.12, product.id === 'salt'
+  const combo = Boolean(product.ids)
+  const pouch = new T.Group()
+  const selections = combo ? product.ids.map(id => products.find(item => item.id === id)) : [product]
+  const models = await Promise.all(selections.map(pack))
+  models.forEach((model,index) => {
+    const scale = combo ? (models.length === 2 ? .86 : models.length === 3 ? .72 : .62) : 1
+    model.scale.setScalar(scale)
+    model.position.set((index-(models.length-1)/2)*(combo ? .88 : 0), -1.01*(1-scale), 0)
+    pouch.add(model)
+  })
+  const scene = studio(host, canvas, context, { height: 2.93, minWidth: combo ? 3.8 : 2.72 })
+  const deck = pedestal(combo ? 1.65 : product.id === 'salt' ? 1.03 : 1.12, product.id === 'salt'
     ? { stage: '#be9992', light: '#f5d4c8' } : product)
   deck.root.position.y = -1.02
   pouch.position.y = .077

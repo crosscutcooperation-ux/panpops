@@ -272,7 +272,20 @@ mod tests {
         let state = Arc::new(AppState::new(config).unwrap());
         let router = app(state.clone());
         let (_,_,cookie)=call(&router,"/api/account/register","POST",json!({"email":"owner@example.com","name":"Owner","password":"long-test-password","over14":true}),"",false).await;
-        let body = json!({"items":[{"id":"fiery-pure","quantity":1}],"packages":[{"kind":"combo","ids":["fiery-pure"],"quantity":1,"capacity":null}],"over14":true,"expected_total_paise":36000,"customer":{"full_name":"Owner","email":"owner@example.com","phone":"9999999999","address":"Test address","address2":"","city":"Mumbai","state":"Maharashtra","pincode":"400001","country":"India"}});
+        let mut body = json!({"items":[{"id":"fiery-pure","quantity":1}],"packages":[{"kind":"combo","ids":["fiery-pure"],"quantity":1,"capacity":null}],"over14":true,"coupon_code":"CRUNCH15","expected_total_paise":1,"customer":{"full_name":"Owner","email":"owner@example.com","phone":"9999999999","address":"Test address","address2":"","city":"Mumbai","state":"Maharashtra","pincode":"400001","country":"India"}});
+        let tampered = Request::builder()
+            .method("POST")
+            .uri("/api/orders")
+            .header("content-type", "application/json")
+            .header("cookie", &cookie)
+            .header("x-idempotency-key", Uuid::new_v4().to_string())
+            .body(Body::from(body.to_string()))
+            .unwrap();
+        assert_eq!(
+            router.clone().oneshot(tampered).await.unwrap().status(),
+            StatusCode::CONFLICT
+        );
+        body["expected_total_paise"] = json!(30600);
         let request = Request::builder()
             .method("POST")
             .uri("/api/orders")
@@ -294,6 +307,7 @@ mod tests {
         .await;
         assert_eq!(history["orders"].as_array().unwrap().len(), 1);
         assert_eq!(history["orders"][0]["items"][0]["id"], "fiery-pure");
+        assert_eq!(history["orders"][0]["amount_paise"], 30600);
         let invalid = Request::builder()
             .method("POST")
             .uri("/api/account/logout")

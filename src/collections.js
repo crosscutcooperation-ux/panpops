@@ -170,7 +170,9 @@ function initShop(root) {
 }
 
 function initProduct(root) {
-  const product = productById[root.dataset.product]
+  const combo = comboById[root.dataset.product]
+  const product = combo ? { ...productById[combo.ids[0]], ...combo, weight: combo.ids.length * 50 } : productById[root.dataset.product]
+  const unit = combo ? 'combo' : 'pouch'
   const stage = root.querySelector('[data-stage]')
   const count = root.querySelector('[data-product-quantity]')
   const decrease = root.querySelector('[data-quantity="-1"]')
@@ -200,7 +202,7 @@ function initProduct(root) {
     increase.disabled = quantity === MAX_QUANTITY
     presets.forEach(button => button.setAttribute('aria-pressed', String(Number(button.dataset.quantityPreset) === quantity)))
     const total = money(product.price * quantity)
-    summary.innerHTML = quantity + (quantity === 1 ? ' pouch' : ' pouches') + ' · ' + product.weight * quantity + ' g total <strong>' + total + '</strong>'
+    summary.innerHTML = quantity + ' ' + unit + (quantity === 1 ? '' : 's') + ' · ' + product.weight * quantity + ' g total <strong>' + total + '</strong>'
     addTotal.textContent = total
   }
 
@@ -209,11 +211,11 @@ function initProduct(root) {
   increase.addEventListener('click', () => chooseQuantity(quantity + 1))
   add.disabled = product.active === false
   if (add.disabled) add.textContent = 'Currently unavailable'
-  add.addEventListener('click', () => addToCart('pack', [product.id], quantity, add))
+  add.addEventListener('click', () => addToCart(combo ? 'combo' : 'pack', combo ? combo.ids : [product.id], quantity, add, combo?.id))
   flip.addEventListener('click', () => {
     reversed = !reversed
     flip.setAttribute('aria-expanded', String(reversed))
-    flip.innerHTML = icon('spin') + (reversed ? ' View front of pack' : ' View back of pack')
+    flip.innerHTML = icon('spin') + (combo ? (reversed ? ' View fronts of packs' : ' View backs of packs') : (reversed ? ' View front of pack' : ' View back of pack'))
     labelPanel.hidden = !reversed
     stage.querySelector('.product-front').hidden = reversed
     stage.querySelector('.product-back').hidden = !reversed

@@ -60,6 +60,7 @@ export function checkoutPage() {
             <ul data-checkout-items aria-label="Order items"></ul>
             <div class="basket-subtotal"><span>Subtotal</span><strong data-checkout-subtotal></strong></div>
             <div class="receipt-delivery"><span>Delivery</span><strong data-checkout-shipping></strong></div>
+            <div class="receipt-discount" data-discount-row hidden><span data-discount-label>Coupon discount</span><strong data-checkout-discount></strong></div>
             <div class="basket-subtotal"><span>Total</span><strong data-checkout-total></strong></div>
             <div class="receipt-barcode" aria-hidden="true"></div>
             <small data-commerce-mode>Preview prices</small>
@@ -85,6 +86,7 @@ export function checkoutPage() {
                   ${billingField('PIN code', 'pincode', 'inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" required autocomplete="postal-code" title="Enter a 6-digit PIN code"')}
                   <label class="form-field"><span>Country</span><select name="country" autocomplete="country-name"><option>India</option></select></label>
                 </div>
+                <div class="coupon-field"><label class="form-field"><span>Coupon code</span><input name="coupon" maxlength="40" autocomplete="off" autocapitalize="characters" placeholder="Enter coupon code" data-coupon-input></label><button class="quiet-control" type="button" data-apply-coupon>Apply</button><button class="quiet-control" type="button" data-remove-coupon hidden>Remove</button><p role="status" data-coupon-message></p></div>
                 ${ageControl()}
                 <p class="form-message" data-checkout-message role="status"></p>
                 <button class="commerce-button" type="submit">Review order</button>

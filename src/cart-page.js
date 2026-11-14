@@ -35,7 +35,7 @@ export function initCartPage(root, notify) {
           <div class="cart-card-info">
             <p class="item-weight">${line.type !== 'pack' ? line.ids.length + ' × 50 g' : product.weight + ' g pouch'}</p>
             <h2>${name}</h2>
-            ${line.type === 'box' ? '<p class="combo-contents">' + line.ids.length + ' pouches · sealed box</p>' : ''}
+            ${line.type === 'box' ? '<p class="combo-contents">' + line.ids.length + ' pouches · custom mix</p>' : ''}
             <strong class="item-price">${money(lineSubtotal(line))}</strong>
             <div class="cart-quantity">
               <button type="button" data-line-action="decrease" data-key="${line.key}" aria-label="Decrease ${name} quantity">${icon('minus')}</button>

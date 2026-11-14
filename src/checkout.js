@@ -49,6 +49,30 @@ export function initCheckoutPage(root) {
   let packingEpoch = 0
   let paymentAttempt = null
   let gatewayReady = !backendEnabled
+  let appliedCoupon = ''
+  let couponBusy = false
+  const couponInput = root.querySelector('[data-coupon-input]')
+  const couponMessage = root.querySelector('[data-coupon-message]')
+  const applyCoupon = root.querySelector('[data-apply-coupon]')
+  const removeCoupon = root.querySelector('[data-remove-coupon]')
+  async function setCoupon(code) {
+    if (couponBusy) return
+    couponBusy = true
+    applyCoupon.disabled = removeCoupon.disabled = submit.disabled = true
+    try {
+      const quote = await quoteCart(getCart(), code)
+      appliedCoupon = quote.coupon_code || ''
+      couponInput.value = appliedCoupon
+      removeCoupon.hidden = !appliedCoupon
+      renderReceipt(getCart(), quote)
+      reviewedCart = null
+      couponMessage.textContent = appliedCoupon ? appliedCoupon + ' applied. You save ' + rupees(quote.discount_paise) + '.' : 'Coupon removed.'
+    } catch (error) { couponMessage.textContent = error.message + (appliedCoupon ? ' ' + appliedCoupon + ' remains applied.' : '') }
+    finally { couponBusy = false; applyCoupon.disabled = removeCoupon.disabled = submit.disabled = false }
+  }
+  applyCoupon.addEventListener('click', () => setCoupon(couponInput.value.trim()))
+  removeCoupon.addEventListener('click', () => setCoupon(''))
+  couponInput.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); applyCoupon.click() } })
 
   const account = getPreviewAccount()
   if (account) {
@@ -81,7 +105,7 @@ export function initCheckoutPage(root) {
   }
 
   async function currentQuote(lines) {
-    const quote = await quoteCart(lines)
+    const quote = await quoteCart(lines, appliedCoupon)
     for (const item of quote.items || []) {
       const product = productById[item.id] || comboById[item.id]
       if (product) product.price = item.unit_price_paise / 100
@@ -93,6 +117,9 @@ export function initCheckoutPage(root) {
     const visibleLines = scanned ? lines.filter(line => scanned.has(line.key)) : lines
     root.querySelector('[data-checkout-items]').innerHTML = visibleLines.map(line => '<li><span>' + (line.type === 'box' ? boxButton(line) : '') + line.quantity + ' × ' + nameOf(line) + '</span><strong>' + (quote ? money(lineSubtotal(line)) : '—') + '</strong></li>').join('')
     const done = !scanned || scanned.size === lines.length
+    root.querySelector('[data-discount-row]').hidden = !quote?.discount_paise || !done
+    root.querySelector('[data-discount-label]').textContent = 'Coupon ' + (quote?.coupon_code || '')
+    root.querySelector('[data-checkout-discount]').textContent = quote ? '−' + rupees(quote.discount_paise || 0) : '—'
     const scannedAmount = quote ? Math.round(subtotal(visibleLines) * 100) : null
     root.querySelector('[data-checkout-subtotal]').textContent = quote ? rupees(scannedAmount) : '—'
     root.querySelector('[data-checkout-shipping]').textContent = quote && done ? rupees(quote.shipping_paise) : '—'
@@ -219,6 +246,7 @@ export function initCheckoutPage(root) {
       packages: getCart().map(({ type, ids, quantity, capacity, comboId }) => ({ kind: type, ids: type === 'combo' ? [comboId] : ids, quantity, capacity: type === 'box' ? capacity || 4 : null })),
       over14: form.elements.over14.checked,
       expected_total_paise: reviewedQuote.total_paise,
+      coupon_code: reviewedQuote.coupon_code || '',
       customer: {
         full_name: customer.fullName, email: customer.email, phone: customer.phone,
         address: customer.address, address2: customer.address2 || '', city: customer.city,
@@ -273,7 +301,7 @@ export function initCheckoutPage(root) {
 
   form.addEventListener('submit', async event => {
     event.preventDefault()
-    if (!validateTextFields(form)) return
+    if (couponBusy || !validateTextFields(form)) return
     const lines = getCart()
     if (!lines.length) { setEmptyState(lines); return }
     submit.disabled = true
@@ -290,9 +318,9 @@ export function initCheckoutPage(root) {
       ].filter(Boolean).join('\n')
       root.querySelector('[data-review-items]').innerHTML = lines.map(line =>
         '<li><span>' + line.quantity + ' × ' + nameOf(line) +
-        (line.type === 'box' ? boxButton(line) + '<small>' + line.ids.length + ' pouches · sealed box</small>' : '') +
+        (line.type === 'box' ? boxButton(line) + '<small>' + line.ids.length + ' pouches · custom mix</small>' : '') +
         '</span><strong>' + money(lineSubtotal(line)) + '</strong></li>'
-      ).join('') + '<li><span>Delivery</span><strong>' + rupees(quote.shipping_paise) + '</strong></li>'
+      ).join('') + '<li><span>Delivery</span><strong>' + rupees(quote.shipping_paise) + '</strong></li>' + (quote.discount_paise ? '<li><span>Coupon ' + quote.coupon_code + '</span><strong>−' + rupees(quote.discount_paise) + '</strong></li>' : '')
       root.querySelector('[data-review-subtotal]').textContent = rupees(quote.total_paise)
       renderReceipt(lines, quote)
       reviewedCart = fingerprint(lines)

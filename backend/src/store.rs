@@ -39,6 +39,8 @@ pub struct QuoteItem {
 pub struct Quote {
     pub items: Vec<QuoteItem>,
     pub subtotal_paise: i64,
+    pub discount_paise: i64,
+    pub coupon_code: String,
     pub shipping_paise: i64,
     pub total_paise: i64,
     pub currency: &'static str,
@@ -75,6 +77,11 @@ pub fn initialize(conn: &Connection) -> rusqlite::Result<()> {
            provider_id TEXT UNIQUE, payment_id TEXT UNIQUE, details TEXT NOT NULL,
            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
          );
+         CREATE TABLE IF NOT EXISTS coupons (
+           code TEXT PRIMARY KEY, percent_basis_points INTEGER NOT NULL CHECK(percent_basis_points BETWEEN 1 AND 10000),
+           min_subtotal_paise INTEGER NOT NULL CHECK(min_subtotal_paise>=0), max_discount_paise INTEGER NOT NULL CHECK(max_discount_paise>0), active INTEGER NOT NULL DEFAULT 1
+         );
+         INSERT OR IGNORE INTO coupons VALUES('CRUNCH15',1500,18000,29900,1);
          CREATE TABLE IF NOT EXISTS webhook_events (
            id TEXT PRIMARY KEY, received_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
          );",
@@ -116,6 +123,63 @@ pub fn combo_ids(id: &str) -> Option<&'static [&'static str]> {
     }
 }
 
+#[cfg(test)]
+mod coupon_tests {
+    use super::*;
+    #[test]
+    fn coupons_are_validated_capped_and_keep_delivery_separate() {
+        let db = Connection::open_in_memory().unwrap();
+        initialize(&db).unwrap();
+        let one = vec![Item {
+            id: "chataka".into(),
+            quantity: 1,
+        }];
+        let discounted = quote_with_coupon(&db, &one, " crunch15 ").unwrap();
+        assert_eq!(discounted.coupon_code, "CRUNCH15");
+        assert_eq!(discounted.discount_paise, 2700);
+        assert_eq!(discounted.total_paise, 15300);
+        let large = quote_with_coupon(
+            &db,
+            &[Item {
+                id: "ultimate".into(),
+                quantity: 4,
+            }],
+            "CRUNCH15",
+        )
+        .unwrap();
+        assert_eq!(large.discount_paise, 29900);
+        assert!(quote_with_coupon(&db, &one, "NOTREAL").is_err());
+        assert!(quote_with_coupon(&db, &one, "<script>").is_err());
+        db.execute("UPDATE settings SET shipping_paise=5000", [])
+            .unwrap();
+        assert_eq!(
+            quote_with_coupon(&db, &one, "CRUNCH15")
+                .unwrap()
+                .total_paise,
+            20300
+        );
+        db.execute(
+            "UPDATE products SET price_paise=10000 WHERE id='chataka'",
+            [],
+        )
+        .unwrap();
+        assert!(quote_with_coupon(&db, &one, "CRUNCH15").is_err());
+        db.execute("UPDATE coupons SET active=0", []).unwrap();
+        assert!(
+            quote_with_coupon(
+                &db,
+                &[Item {
+                    id: "ultimate".into(),
+                    quantity: 1
+                }],
+                "CRUNCH15"
+            )
+            .is_err()
+        );
+        assert_eq!(quote(&db, &one).unwrap().discount_paise, 0);
+    }
+}
+
 pub fn products(conn: &Connection) -> ApiResult<Vec<Product>> {
     let mut stmt =
         conn.prepare("SELECT id,name,price_paise,active,version FROM products ORDER BY rowid")?;
@@ -146,6 +210,10 @@ pub fn settings(conn: &Connection) -> ApiResult<Settings> {
 }
 
 pub fn quote(conn: &Connection, items: &[Item]) -> ApiResult<Quote> {
+    quote_with_coupon(conn, items, "")
+}
+
+pub fn quote_with_coupon(conn: &Connection, items: &[Item], code: &str) -> ApiResult<Quote> {
     if items.is_empty() || items.len() > 9 {
         return Err(AppError::bad("Select between one and nine product types."));
     }
@@ -176,6 +244,28 @@ pub fn quote(conn: &Connection, items: &[Item]) -> ApiResult<Quote> {
         });
     }
     let subtotal = lines.iter().map(|line| line.total_paise).sum::<i64>();
+    let coupon_code = code.trim().to_ascii_uppercase();
+    if coupon_code.len() > 40
+        || !coupon_code
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+    {
+        return Err(AppError::bad("Enter a valid coupon code."));
+    }
+    let discount = if coupon_code.is_empty() {
+        0
+    } else {
+        let rule:Option<(i64,i64,i64)>=conn.query_row("SELECT percent_basis_points,min_subtotal_paise,max_discount_paise FROM coupons WHERE code=?1 AND active=1",[&coupon_code],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).optional()?;
+        let (basis, minimum, cap) =
+            rule.ok_or_else(|| AppError::bad("This coupon is invalid or no longer available."))?;
+        if subtotal < minimum {
+            return Err(AppError::bad(&format!(
+                "This coupon needs a minimum product subtotal of ₹{:.2}.",
+                minimum as f64 / 100.0
+            )));
+        }
+        (subtotal * basis / 10000).min(cap).min(subtotal)
+    };
     let delivery = settings(conn)?;
     let shipping =
         if delivery.free_shipping_min_paise > 0 && subtotal >= delivery.free_shipping_min_paise {
@@ -183,7 +273,7 @@ pub fn quote(conn: &Connection, items: &[Item]) -> ApiResult<Quote> {
         } else {
             delivery.shipping_paise
         };
-    let total = subtotal + shipping;
+    let total = subtotal - discount + shipping;
     if !(100..=2_000_000_000).contains(&total) {
         return Err(AppError::bad(
             "The order total is outside the supported range.",
@@ -192,6 +282,8 @@ pub fn quote(conn: &Connection, items: &[Item]) -> ApiResult<Quote> {
     Ok(Quote {
         items: lines,
         subtotal_paise: subtotal,
+        discount_paise: discount,
+        coupon_code,
         shipping_paise: shipping,
         total_paise: total,
         currency: "INR",
