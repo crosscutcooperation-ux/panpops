@@ -1,11 +1,11 @@
 # Production deployment
 
-The production service runs as the unprivileged `panpops` system user. Until
-`panvibesonline.com` points at the EC2 instance, Nginx terminates TLS on the
-public EC2 IP and proxies the same-origin frontend and `/api` requests to Axum
-on `127.0.0.1:3001`. The intended canonical host is
-`https://panvibesonline.com`; `https://www.panvibesonline.com` redirects to the
-canonical apex host after both DNS records point to this instance.
+The production service runs as the unprivileged `panpops` system user. Nginx
+terminates TLS for `panvibesonline.com` and proxies the same-origin frontend
+and `/api` requests to Axum on `127.0.0.1:3001`. The canonical host is
+`https://panvibesonline.com`; `https://www.panvibesonline.com` and the EC2 IP
+redirect to it. A Let's Encrypt certificate covers both domain names and is
+renewed by Certbot's scheduled task.
 
 Runtime state is intentionally outside release directories:
 
@@ -23,6 +23,7 @@ Checkout can be observed without blocking payments. Promote it to an enforcing
 `Content-Security-Policy` header only after production checkout telemetry shows
 the final Razorpay origins required by the account's enabled payment methods.
 
-The Razorpay webhook is planned as
-`https://panvibesonline.com/api/webhooks/razorpay`. It cannot reach this
-backend until the domain A record changes from the previous host to the EC2 IP.
+The Razorpay Test Mode webhook is
+`https://panvibesonline.com/api/webhooks/razorpay`. It accepts signed
+`payment.captured` and `order.paid` notifications with the secret configured
+in `/etc/panpops.env`.
