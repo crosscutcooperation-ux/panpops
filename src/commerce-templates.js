@@ -72,7 +72,7 @@ export function checkoutPage() {
               <div class="screen-step"><span>01 / DETAILS</span><span>02 / REVIEW</span></div>
               <h2>Billing & delivery</h2>
               <p class="form-intro">Enter sample details to try this checkout. This preview collects no payment.</p>
-              <p class="guest-note">Have a preview account? <a href="/login/?next=checkout">Log in</a></p>
+              <p class="guest-note">Track your order in <a href="/account/">My account</a>. <a href="/login/?next=checkout">Log in before checkout</a>.</p>
               <form data-checkout-form method="post">
                 <div class="billing-grid">
                   ${billingField('Full name', 'fullName', 'required maxlength="100" autocomplete="name"', 'full-width')}
@@ -128,16 +128,16 @@ export function accountPage(mode) {
       <div class="account-card">
 
         <h1>${register ? 'Register' : 'Login'}</h1>
-        <p class="form-intro">Use a sample email and password to try this preview.</p>
+        <p class="form-intro">${register ? 'Create your PanPops account to follow your orders.' : 'Sign in to view your orders and delivery updates.'}</p>
         <form method="post" data-account-form="${mode}">
           ${register ? billingField('Full name', 'fullName', 'required maxlength="100" autocomplete="off"') : ''}
           ${billingField('Email address', 'email', 'type="email" required maxlength="150" autocomplete="off"')}
           <label class="form-field"><span>Password</span>
-            <span class="password-field"><input name="password" type="password" required minlength="8" maxlength="128" autocomplete="new-password" placeholder="At least 8 characters"><button type="button" class="password-toggle" data-toggle-password aria-label="Show password">${icon('eye')}</button></span>
+            <span class="password-field"><input name="password" type="password" required minlength="12" maxlength="128" autocomplete="${register ? 'new-password' : 'current-password'}" placeholder="At least 12 characters"><button type="button" class="password-toggle" data-toggle-password aria-label="Show password">${icon('eye')}</button></span>
           </label>
           ${ageControl()}
           <p class="form-message" data-account-message role="status"></p>
-          <button class="commerce-button" type="submit">${register ? 'Create preview account' : 'Login to preview'}</button>
+          <button class="commerce-button" type="submit">${register ? 'Create account' : 'Login'}</button>
         </form>
         <p class="account-switch">${register ? 'Already have an account?' : 'New to PanPops?'} <a href="${register ? '/login/' : '/register/'}" data-account-switch>${register ? 'Login' : 'Create an account'}</a></p>
       </div>
@@ -165,7 +165,11 @@ export function adminPage() {
           <label class="form-field"><span>Free delivery from (₹, 0 disables)</span><input name="threshold" type="number" step=".01" min="0" max="1000000" required></label>
           <button class="commerce-button" type="submit">Save delivery</button>
         </form>
-        <div class="admin-table-wrap"><table class="admin-table"><caption>Recent orders</caption><thead><tr><th>Order</th><th>Amount</th><th>Status</th><th>Created</th></tr></thead><tbody data-admin-orders></tbody></table></div>
+        <section class="orders-dashboard"><h2>Orders & dispatch</h2><p>Open an order to prepare it, record pickup, or update delivery. Email opens a prepared message in your mail app.</p><label class="form-field">Filter orders<select data-order-filter><option value="all">All orders</option><option value="paid">Paid / ready to process</option><option value="processing">Preparing</option><option value="ready_for_pickup">Ready for pickup</option><option value="picked_up">Picked up</option><option value="out_for_delivery">Out for delivery</option><option value="delivered">Delivered</option><option value="cancelled">Cancelled</option></select></label><div data-admin-orders></div></section>
       </div>
     </section>`
+}
+
+export function myAccountPage() {
+  return `<section class="shell commerce-page my-account" data-my-account><p class="commerce-kicker">PANPOPS / MY ACCOUNT</p><h1 data-account-name>My account</h1><p data-account-email></p><p data-account-status role="status">Connecting to your account…</p><a href="/login/" class="commerce-button" data-account-login hidden>Login</a><div class="admin-toolbar" data-account-controls hidden><button class="quiet-control" data-refresh-orders>Refresh orders</button><button class="quiet-control" data-signout>Sign out</button></div><div data-customer-orders></div><a class="quiet-link" href="/shop/">Continue shopping</a></section>`
 }

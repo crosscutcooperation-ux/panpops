@@ -11,7 +11,7 @@ function packImage(product, className = '', lazy = false) {
 function shopSelection(standalone = false, recommendedFor = null) {
   const items = [
     ...products.map(product => ({ ...product, ids: [product.id], category: 'single', url: productUrl(product), note: product.note })),
-    ...combos.map(combo => ({ ...combo, category: 'combo' + combo.ids.length, url: '/build-a-box/?mix=' + combo.ids.join(','), note: combo.ids.map(id => productById[id].name).join(' + ') })),
+    ...combos.map(combo => ({ ...combo, category: 'combo' + combo.ids.length, url: '/shop/combos/' + combo.id + '/', note: combo.ids.map(id => productById[id].name).join(' + ') })),
   ].filter(item => !recommendedFor || item.ids.length !== 1 || item.ids[0] !== recommendedFor.id)
   const filters = [['all', 'Show all'], ['single', 'Single packs'], ['combo2', '2-pack combos'], ['combo3', '3-pack combos'], ['combo4', '4-pack combo'], ['custom', 'Build your own']]
   const headingId = recommendedFor ? 'recommended-heading' : 'shop-heading'
@@ -43,7 +43,7 @@ function shopSelection(standalone = false, recommendedFor = null) {
                 <p class="studio-kicker">${item.ids.length === 1 ? 'ROASTED MAKHANA / 50 G' : item.ids.length + ' FLAVOURS / ' + item.ids.length * 50 + ' G'}</p>
                 <h3><a href="${item.url}">${item.name}</a></h3>
                 <p class="shop-item-note">${item.note}</p>
-                <div class="shop-item-buy"><span><b data-selection-price="${item.ids.join(',')}">${money(item.price)}</b> <small>${item.ids.length === 1 ? '/ pouch' : '/ combo'}</small></span><button type="button" data-shop-add="${item.ids.join(',')}" aria-label="Add ${item.name} to cart">${icon('plus')}</button></div>
+                <div class="shop-item-buy"><span><b data-selection-price="${item.ids.join(',')}" ${item.ids.length > 1 ? 'data-combo-price="' + item.id + '"' : ''}>${money(item.price)}</b> <small>${item.ids.length === 1 ? '/ pouch' : '/ combo'}</small></span><button type="button" data-shop-add="${item.ids.join(',')}" ${item.ids.length > 1 ? 'data-combo-id="' + item.id + '"' : ''} aria-label="Add ${item.name} to cart">${icon('plus')}</button></div>
               </div>
             </article>`
           }).join('')}
@@ -62,6 +62,11 @@ function shopSelection(standalone = false, recommendedFor = null) {
 
 export function shopPage() {
   return shopSelection(true)
+}
+
+export function comboPage(combo) {
+  const product = productById[combo.ids[0]]
+  return `<section class="shell inner-page combo-detail" data-shop style="${productStyle(product)}"><div class="breadcrumbs"><a href="/shop/">Products</a><span>/</span><span>${combo.name}</span></div><div class="combo-detail-layout"><div class="shop-grid" data-shop-grid><div class="shop-canvas" data-shop-canvas aria-hidden="true"></div><article class="shop-item" data-category="combo"><div class="shop-display" data-display="${combo.ids.join(',')}" aria-label="${combo.name} rotating pouches"><div class="display-stills display-count-${combo.ids.length}">${combo.ids.map(id => packImage(productById[id])).join('')}</div></div></article></div><div><p class="eyebrow">FIXED COMBO / ${combo.ids.length * 50} G</p><h1>${combo.name}</h1><p>${combo.ids.map(id => productById[id].name).join(' + ')}</p><p>A ready-made mix for your snack shelf. Enjoy one 50 g pouch of each flavour shown.</p><strong class="combo-detail-price" data-combo-price="${combo.id}">${money(combo.price)}</strong><button class="button" data-shop-add="${combo.ids.join(',')}" data-combo-id="${combo.id}">Add combo to cart</button><button class="motion-toggle" data-shop-motion aria-pressed="true">Rotation <span>on</span></button><a class="text-link" href="/build-a-box/">Prefer your own mix? Build a custom box</a></div></div></section>`
 }
 
 export function productPage(product) {

@@ -6,7 +6,7 @@ import { playCartArrival } from './cart-arrival.js'
 import { getCart, addLine } from './cart.js'
 import { initCartPage } from './cart-page.js'
 import { initCheckoutPage } from './checkout.js'
-import { initAccountPage } from './account.js'
+import { initAccountPage, loadAccount, initMyAccount } from './account.js'
 import { initCollections } from './collections.js'
 
 const motion = matchMedia('(prefers-reduced-motion: reduce)')
@@ -191,6 +191,9 @@ function initCrossing(stage) {
 async function startStore() {
   try { await loadCatalogue() }
   catch (error) { notify('Live prices are unavailable. ' + error.message) }
+  await loadAccount()
+  const accountPage = document.querySelector('[data-my-account]')
+  if (accountPage) initMyAccount(accountPage)
   const admin = document.querySelector('[data-admin-page]')
   if (admin) initAdminPage(admin)
   const crossing = document.querySelector('[data-crossing]')

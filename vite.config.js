@@ -1,7 +1,7 @@
 import { resolve } from 'node:path'
 import { defineConfig } from 'vite'
 import { renderPage } from './src/templates.js'
-import { products } from './src/catalog.js'
+import { products, combos } from './src/catalog.js'
 
 const routes = {
   '/index.html': ['home', 'Pick your crunch'],
@@ -9,12 +9,14 @@ const routes = {
   '/checkout/index.html': ['checkout', 'Checkout'],
   '/login/index.html': ['login', 'Login'],
   '/admin/index.html': ['admin', 'Prices & orders'],
+  '/account/index.html': ['account', 'My account'],
   '/register/index.html': ['register', 'Create an account'],
   '/shop/index.html': ['shop', 'Our products'],
   '/build-a-box/index.html': ['box', 'Build a box'],
   '/about/index.html': ['about', 'About PanPops'],
   '/contact/index.html': ['contact', 'Contact PanPops'],
   ...Object.fromEntries(products.map(product => ['/shop/' + product.slug + '/index.html', ['product', product.name, product]])),
+  ...Object.fromEntries(combos.map(combo => ['/shop/combos/' + combo.id + '/index.html', ['combo', combo.name, combo]])),
 }
 
 export default defineConfig({

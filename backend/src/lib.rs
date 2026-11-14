@@ -1,3 +1,5 @@
+pub mod accounts;
+pub mod fulfilment;
 pub mod payments;
 pub mod store;
 
@@ -139,6 +141,7 @@ impl AppState {
             std::fs::set_permissions(&config.database, std::fs::Permissions::from_mode(0o600))?;
         }
         store::initialize(&db)?;
+        accounts::initialize(&db)?;
         #[cfg(unix)]
         if config.database != ":memory:" {
             use std::os::unix::fs::PermissionsExt;
@@ -170,6 +173,11 @@ pub fn app(state: Arc<AppState>) -> Router {
     let mut router = Router::new()
         .route("/api/health", get(|| async { Json(json!({"ok":true})) }))
         .route("/api/config", get(config))
+        .route("/api/account/register", post(accounts::register))
+        .route("/api/account/login", post(accounts::login))
+        .route("/api/account/logout", post(accounts::logout))
+        .route("/api/account/me", get(accounts::me))
+        .route("/api/account/orders", get(accounts::orders))
         .route("/api/products", get(catalogue))
         .route("/api/quote", post(quote))
         .route("/api/orders", post(create_order))
@@ -183,6 +191,7 @@ pub fn app(state: Arc<AppState>) -> Router {
             get(admin_settings).put(update_settings),
         )
         .route("/api/admin/orders", get(admin_orders))
+        .route("/api/admin/orders/{id}", put(fulfilment::update))
         .fallback_service(
             ServeDir::new(&state.config.frontend_dir).append_index_html_on_directories(true),
         )
@@ -194,6 +203,7 @@ pub fn app(state: Arc<AppState>) -> Router {
             .expect("FRONTEND_ORIGIN must be a valid HTTP origin");
         router = router.layer(
             CorsLayer::new()
+                .allow_credentials(true)
                 .allow_origin(origin)
                 .allow_methods([Method::GET, Method::POST, Method::PUT])
                 .allow_headers([
@@ -319,15 +329,7 @@ async fn admin_orders(
 ) -> ApiResult<Json<Value>> {
     authorize(&headers, &state.config.admin_token)?;
     let conn = state.connection()?;
-    let mut stmt = conn.prepare("SELECT id,amount,status,provider_id,payment_id,created_at FROM orders ORDER BY created_at DESC LIMIT 100")?;
-    let rows = stmt.query_map([], |row| Ok(json!({
-        "id": row.get::<_,String>(0)?, "amount_paise": row.get::<_,i64>(1)?, "status":row.get::<_,String>(2)?,
-        "razorpay_order_id":row.get::<_,Option<String>>(3)?, "payment_id":row.get::<_,Option<String>>(4)?,
-        "created_at":row.get::<_,String>(5)?,
-    })))?;
-    Ok(Json(
-        json!({ "orders": rows.collect::<rusqlite::Result<Vec<_>>>()? }),
-    ))
+    Ok(Json(json!({ "orders": fulfilment::list(&conn,None)? })))
 }
 
 #[derive(Deserialize, Serialize)]
@@ -407,9 +409,22 @@ fn validate_packages(packages: &[Package], items: &[store::Item]) -> ApiResult<(
     let mut packed = BTreeMap::new();
     for package in packages {
         let valid = match package.kind.as_str() {
-            "pack" => package.ids.len() == 1 && package.capacity.is_none(),
+            "pack" => {
+                package.ids.len() == 1
+                    && package.capacity.is_none()
+                    && ["chataka", "cream", "peri", "salt"].contains(&package.ids[0].as_str())
+            }
+            "combo" => {
+                package.ids.len() == 1
+                    && store::combo_ids(&package.ids[0]).is_some()
+                    && package.capacity.is_none()
+            }
             "box" => {
                 matches!(package.capacity, Some(4) | Some(6))
+                    && package
+                        .ids
+                        .iter()
+                        .all(|id| ["chataka", "cream", "peri", "salt"].contains(&id.as_str()))
                     && package.ids.len() >= 2
                     && package.ids.len() <= package.capacity.unwrap_or(0)
             }
@@ -506,6 +521,17 @@ async fn create_order(
             "INSERT INTO orders(id,idempotency_key,request_hash,access_token,amount,status,details) VALUES(?1,?2,?3,?4,?5,'creating',?6)",
             params![id, key, request_hash, token, amount, details],
         )?;
+        if let Some(account) = accounts::user(&tx, &headers)? {
+            if account["email"].as_str() != Some(&body.customer.email.to_lowercase()) {
+                return Err(AppError::bad(
+                    "Use your account email for this order, or sign out to checkout as a guest.",
+                ));
+            }
+            tx.execute(
+                "INSERT INTO order_owners(order_id,user_id) VALUES(?1,?2)",
+                params![id, account["id"].as_str()],
+            )?;
+        }
         tx.commit()?;
     }
 

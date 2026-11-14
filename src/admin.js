@@ -1,5 +1,6 @@
 import { backendEnabled, request, jsonRequest } from './api.js'
 import { money } from './catalog.js'
+import { renderOrder } from './order-ui.js'
 
 export function initAdminPage(root) {
   const connect = root.querySelector('[data-admin-connect]')
@@ -11,6 +12,18 @@ export function initAdminPage(root) {
   let token = ''
   let settings
   let catalogue = []
+  let orderList = []
+  const filter = root.querySelector('[data-order-filter]')
+  function renderOrders() {
+    const visible = orderList.filter(order => filter.value === 'all' || order.status === filter.value || order.fulfilment_status === filter.value)
+    orderRows.replaceChildren(...visible.map(order => renderOrder(order, true, async (order, body) => {
+      await jsonRequest('admin/orders/' + encodeURIComponent(order.id), body, { method: 'PUT', headers: headers() })
+      await load()
+      message.textContent = 'Order updated. The customer can see this in My account.'
+    })))
+    if (!visible.length) orderRows.textContent = 'No orders in this view.'
+  }
+  filter.addEventListener('change', renderOrders)
 
   if (!backendEnabled) {
     root.querySelector('[data-admin-mode]').textContent = 'Open this page on the Rust server, or configure VITE_API_BASE_URL and rebuild the frontend.'
@@ -48,16 +61,8 @@ export function initAdminPage(root) {
     settings = delivery
     settingsForm.elements.shipping.value = (settings.shipping_paise / 100).toFixed(2)
     settingsForm.elements.threshold.value = (settings.free_shipping_min_paise / 100).toFixed(2)
-    orderRows.replaceChildren()
-    for (const order of orders.orders) {
-      const row = document.createElement('tr')
-      for (const value of [order.id, money(order.amount_paise / 100), order.status, order.created_at]) {
-        const cell = document.createElement('td')
-        cell.textContent = value
-        row.append(cell)
-      }
-      orderRows.append(row)
-    }
+    orderList = orders.orders
+    renderOrders()
     connect.hidden = true
     content.hidden = false
   }
@@ -116,6 +121,7 @@ export function initAdminPage(root) {
     connect.hidden = false
     productRows.replaceChildren()
     orderRows.replaceChildren()
+    orderList = []
     message.textContent = ''
     connect.elements.token.focus()
   })

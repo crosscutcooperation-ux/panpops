@@ -3,8 +3,8 @@ import { products, front } from './catalog.js'
 import { icon } from './icons.js'
 import { inspectorTemplate } from './parcel-art.js'
 import { renderTrolley } from './trolley.js'
-import { cartPage, checkoutPage, accountPage, adminPage } from './commerce-templates.js'
-import { shopPage, productPage, boxPage, flavourStudio } from './collection-templates.js'
+import { cartPage, checkoutPage, accountPage, adminPage, myAccountPage } from './commerce-templates.js'
+import { shopPage, productPage, comboPage, boxPage, flavourStudio } from './collection-templates.js'
 
 export { icon } from './icons.js'
 const logo = '<img src="/media/logo.png" width="353" height="104" alt="PanVibes PanPops">'
@@ -24,8 +24,9 @@ function header(page) {
         </div>
         <div class="nav-actions">
           <a class="cart-trigger" href="/cart/" data-cart-link aria-label="Cart, 0 items">${icon('cart')}<span data-cart-count>0</span></a>
-          <a href="/login/">Login</a>
-          <a href="/register/">Register</a>
+          <a href="/login/" data-auth-nav>Login</a>
+          <a href="/account/" data-account-link>My account</a>
+          <a href="/register/" data-auth-nav>Register</a>
         </div>
       </nav>
     </header>`
@@ -125,6 +126,8 @@ export function renderPage(page = 'home', product) {
     box: () => '<div class="catalog-section">' + boxPage() + '</div>',
     cart: cartPage,
     admin: adminPage,
+    account: myAccountPage,
+    combo: () => '<div class="catalog-section">' + comboPage(product) + '</div>',
     checkout: checkoutPage,
     login: () => accountPage('login'),
     register: () => accountPage('register'),

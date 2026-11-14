@@ -12,8 +12,9 @@ export const combos = [
   { id: 'classic', name: 'Classic Trio', ids: ['cream', 'peri', 'salt'] },
   { id: 'spicy', name: 'Spicy Trio', ids: ['chataka', 'peri', 'salt'] },
   { id: 'ultimate', name: 'Ultimate Box', ids: ['chataka', 'cream', 'peri', 'salt'] },
-].map(combo => ({ ...combo, get price() { return combo.ids.reduce((sum, id) => sum + productById[id].price, 0) } }))
-export const boxName = ids => combos.find(combo => combo.ids.length === ids.length && combo.ids.every(id => ids.includes(id)))?.name ?? 'Custom box'
+].map(combo => ({ ...combo, price: combo.ids.length * 180 }))
+export const comboById = Object.fromEntries(combos.map(combo => [combo.id, combo]))
+export const boxName = () => 'Custom box'
 export const money = amount => '₹' + amount.toLocaleString('en-IN', { maximumFractionDigits: 2 })
 export const productUrl = product => '/shop/' + product.slug + '/'
 export const front = product => '/media/' + product.id + '.webp'

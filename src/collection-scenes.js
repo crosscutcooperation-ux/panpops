@@ -102,9 +102,9 @@ function pouchGeometry(face) {
       const u = col / columns
       const h = u * 2 - 1
       const corner = Math.abs(h) ** 8 * (.035 * Math.exp(-v * 42) - .022 * Math.exp(-(1 - v) * 55))
-      const halfWidth = .633 + .091 * v - Math.abs(corner) * .32
+      const halfWidth = .724 - .015 * v - Math.abs(corner) * .32
       const taper = Math.sqrt(Math.max(0, 1 - h * h))
-      const body = Math.sin(Math.PI * v) ** .56
+      const body = (.68 + .32 * Math.sin(Math.PI * v)) * (1 - Math.exp(-(1 - v) * 30))
       const seal = Math.exp(-((v - .918) ** 2) * 2950) * .018
       const crease = (Math.sin(u * 32 + v * 9) + .48 * Math.sin(u * 57 - v * 9)) * .009
       const puff = .252 * taper * body + (crease + seal) * taper * body
@@ -118,6 +118,17 @@ function pouchGeometry(face) {
       const j = i + columns + 1
       if (face === 1) indices.push(i, i + 1, j, i + 1, j + 1, j)
       else indices.push(i, j, i + 1, i + 1, j, j + 1)
+    }
+  }
+  // Fold the two inflated faces into a flat bottom gusset, rather than pinching the base.
+  const bottom = positions.length / 3
+  for (let col = 0; col <= columns; col++) {
+    const u = col / columns
+    positions.push((u * 2 - 1) * .724, -1.01, 0)
+    uv.push(face === 1 ? u : 1 - u, 0)
+    if (col < columns) {
+      if (face === 1) indices.push(col, bottom + col, col + 1, col + 1, bottom + col, bottom + col + 1)
+      else indices.push(col, col + 1, bottom + col, col + 1, bottom + col + 1, bottom + col)
     }
   }
   const geometry = new T.BufferGeometry()

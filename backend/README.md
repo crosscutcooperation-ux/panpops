@@ -72,6 +72,18 @@ cargo test --locked
 
 Tests exercise server-priced totals, delivery thresholds, unavailable products, optimistic updates, duplicate order requests, a known HMAC vector, amount mismatch rejection, authorized versus captured payments, and repeated signed webhooks using a local mock payment provider.
 
-Live Razorpay operations require your account credentials and a deployed HTTPS service. Login and registration remain preview screens; this backend does not implement customer password authentication, account recovery, inventory, fulfilment, refunds, or tax invoicing. The age checkbox records a shopper declaration. The browser cart persists locally across pages and refreshes.
+Razorpay operations require your account credentials; public checkout requires a deployed HTTPS service. Accounts now use Argon2id password hashes and seven-day HttpOnly cookie sessions. Registration requires an over-14 declaration and a password of at least 12 characters. Account recovery, email verification, inventory, refunds and tax invoicing are not implemented. The browser cart persists locally across pages and refreshes.
+
+## Accounts and dispatch
+
+Customers register at `/register/`, sign in at `/login/`, and view orders at `/account/`. Orders created while signed in are attached to that account; checkout must use the account email. Guest and historical orders are not automatically linked by email. My account refreshes every 30 seconds while visible and has a manual Refresh button.
+
+The `/admin/` dashboard includes customer details, order filters, courier references and these fulfilment stages: received → processing → ready for pickup → picked up → out for delivery → delivered. Processing may also move directly to out for delivery. Cancellation is available before pickup. Dispatch requires a captured payment; delivery status does not change payment status. Every status update is recorded and checked against the current version to prevent conflicting edits.
+
+The Email template selector prepares confirmation, preparation, pickup, delivery, cancellation and payment-pending messages. Compose email opens the operator's mail app for review and sending. There is no SMTP service or automatic email sending.
+
+Five fixed combos have separate catalogue IDs and editable prices: `fiery-pure`, `creamy-chatpata`, `classic`, `spicy`, `ultimate`. They are sold as `combo` cart/package lines, distinct from a custom `box`. Custom boxes continue to use individual pouch prices. Existing saved custom boxes remain custom boxes.
+
+Account endpoints: `POST /api/account/register`, `POST /api/account/login`, `POST /api/account/logout`, `GET /api/account/me`, `GET /api/account/orders`. Admin dispatch updates use `PUT /api/admin/orders/{id}` with `{status, tracking, version}` and the administrator Bearer token. Account reads return no-store responses. Password hashing has bounded concurrency, with per-email attempt limits. The same-origin Vite proxy on port 5173 is supported on a loopback-bound backend; configure `FRONTEND_ORIGIN` for a deployed separate frontend.
 
 Orders may include a `packages` array (`kind`, `ids`, `quantity`, and `capacity`). Four- and six-pouch boxes keep their packaging information in the saved order. The server validates that package contents exactly match the priced item quantities. Legacy clients may omit this array.

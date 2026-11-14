@@ -1,7 +1,7 @@
 import { boxButton } from './parcel-art.js'
 import { front, productById, money, boxName } from './catalog.js'
 import { icon } from './icons.js'
-import { getCart, removeLine, clearCart, changeQuantity, lineSubtotal, MAX_QUANTITY } from './cart.js'
+import { getCart, removeLine, clearCart, changeQuantity, lineSubtotal, lineName, MAX_QUANTITY } from './cart.js'
 import { fillTrolley, enterTrolley, flyPouch, flyBox, dissolvePouches, animateElement } from './trolley-motion.js'
 
 export function initCartPage(root, notify) {
@@ -28,12 +28,12 @@ export function initCartPage(root, notify) {
     const lines = getCart()
     list.innerHTML = lines.map(line => {
       const product = productById[line.ids[0]]
-      const name = line.type === 'box' ? boxName(line.ids) : product.name
+      const name = lineName(line)
       return `
         <li class="cart-item" data-line-key="${line.key}">
-          <div class="cart-item-art">${line.type === 'box' ? boxButton(line) : '<img src="' + front(product) + '" alt="' + product.name + ' pouch">'}</div>
+          <div class="cart-item-art ${line.type === 'combo' ? 'combo-cart-art' : ''}">${line.type === 'box' ? boxButton(line) : line.ids.map(id => '<img src="' + front(productById[id]) + '" alt="' + productById[id].name + ' pouch">').join('')}</div>
           <div class="cart-card-info">
-            <p class="item-weight">${line.type === 'box' ? line.ids.length + ' × 50 g' : product.weight + ' g pouch'}</p>
+            <p class="item-weight">${line.type !== 'pack' ? line.ids.length + ' × 50 g' : product.weight + ' g pouch'}</p>
             <h2>${name}</h2>
             ${line.type === 'box' ? '<p class="combo-contents">' + line.ids.length + ' pouches · sealed box</p>' : ''}
             <strong class="item-price">${money(lineSubtotal(line))}</strong>

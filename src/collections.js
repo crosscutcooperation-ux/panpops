@@ -1,4 +1,4 @@
-import { products, productById, boxName, productUrl, front, money, MIN_BOX, MAX_BOX } from './catalog.js'
+import { products, productById, comboById, boxName, productUrl, front, money, MIN_BOX, MAX_BOX } from './catalog.js'
 import { icon } from './icons.js'
 import { productStyle } from './collection-templates.js'
 import { getCart, addLine, packSubtotal, MAX_QUANTITY } from './cart.js'
@@ -7,11 +7,11 @@ import { flyPouch, animateElement } from './trolley-motion.js'
 
 const motion = matchMedia('(prefers-reduced-motion: reduce)')
 let notify
-function addToCart(type, ids, quantity = 1, origin) {
-  if (ids.some(id => productById[id].active === false)) { notify('A selected flavour is currently unavailable.'); return false }
+function addToCart(type, ids, quantity = 1, origin, comboId) {
+  if (type === 'combo' ? comboById[comboId].active === false : ids.some(id => productById[id].active === false)) { notify('This selection is currently unavailable.'); return false }
   const before = getCart()
-  const result = addLine(type, ids, quantity)
-  const name = type === 'box' ? boxName(ids) : productById[ids[0]].name
+  const result = addLine(type, ids, quantity, undefined, comboId)
+  const name = type === 'combo' ? comboById[comboId].name : type === 'box' ? boxName(ids) : productById[ids[0]].name
   if (!result.added) { notify('Your cart has reached the limit for this item.'); return false }
   notify(name + (result.added > 1 ? ' × ' + result.added : '') + ' added to cart.')
   if (origin) {
@@ -163,7 +163,7 @@ function initShop(root) {
   }))
   root.querySelectorAll('[data-shop-add]').forEach(button => button.addEventListener('click', () => {
     const ids = button.dataset.shopAdd.split(',')
-    addToCart(ids.length === 1 ? 'pack' : 'box', ids, 1, button)
+    addToCart(button.dataset.comboId ? 'combo' : 'pack', ids, 1, button, button.dataset.comboId)
   }))
   window.addEventListener('pagehide', event => { if (!event.persisted) scene?.dispose() })
   syncMotion()
@@ -465,11 +465,13 @@ export function initCollections(tell) {
   notify = tell
   document.querySelectorAll('[data-unit-price]').forEach(element => { element.textContent = money(productById[element.dataset.unitPrice].price) })
   document.querySelectorAll('[data-selection-price]').forEach(element => {
+    if (element.dataset.comboPrice) return
     const ids = element.dataset.selectionPrice
     const available = products.filter(product => product.active !== false)
     element.textContent = ids === 'minimum-box' && !available.length ? 'Unavailable' : money(ids === 'minimum-box' ? Math.min(...available.map(product => product.price)) * 2 : packSubtotal(ids.split(',')))
   })
-  document.querySelectorAll('[data-shop-add]').forEach(button => { button.disabled = button.dataset.shopAdd.split(',').some(id => productById[id].active === false) })
+  document.querySelectorAll('[data-combo-price]').forEach(element => { element.textContent = money(comboById[element.dataset.comboPrice].price) })
+  document.querySelectorAll('[data-shop-add]').forEach(button => { button.disabled = button.dataset.comboId ? comboById[button.dataset.comboId].active === false : button.dataset.shopAdd.split(',').some(id => productById[id].active === false) })
   document.querySelectorAll('[data-shop]').forEach(initShop)
   const carousel = document.querySelector('[data-carousel]')
   if (carousel) initCarousel(carousel)

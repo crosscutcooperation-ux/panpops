@@ -1,12 +1,12 @@
 import { parcelImage, boxButton } from './parcel-art.js'
 import { prepareTextFields, validateTextFields } from './forms.js'
-import { productById, money, boxName } from './catalog.js'
-import { getCart, clearCart, lineSubtotal } from './cart.js'
+import { productById, comboById, money, boxName } from './catalog.js'
+import { getCart, clearCart, lineSubtotal, lineName } from './cart.js'
 import { getPreviewAccount } from './account.js'
 import { fillTrolley, enterTrolley, flyPouch, flyBox, animateElement } from './trolley-motion.js'
 import { backendEnabled, request, jsonRequest, orderItems, quoteCart } from './api.js'
 
-const nameOf = line => line.type === 'box' ? boxName(line.ids) : productById[line.ids[0]].name
+const nameOf = lineName
 const fingerprint = lines => JSON.stringify(lines.map(({ key, quantity }) => [key, quantity]).sort())
 const subtotal = lines => lines.reduce((total, line) => total + lineSubtotal(line), 0)
 const rupees = paise => money(paise / 100)
@@ -83,7 +83,8 @@ export function initCheckoutPage(root) {
   async function currentQuote(lines) {
     const quote = await quoteCart(lines)
     for (const item of quote.items || []) {
-      if (productById[item.id]) productById[item.id].price = item.unit_price_paise / 100
+      const product = productById[item.id] || comboById[item.id]
+      if (product) product.price = item.unit_price_paise / 100
     }
     return quote
   }
@@ -215,7 +216,7 @@ export function initCheckoutPage(root) {
     const customer = Object.fromEntries(new FormData(form))
     const payload = {
       items: orderItems(getCart()),
-      packages: getCart().map(({ type, ids, quantity, capacity }) => ({ kind: type, ids, quantity, capacity: type === 'box' ? capacity || 4 : null })),
+      packages: getCart().map(({ type, ids, quantity, capacity, comboId }) => ({ kind: type, ids: type === 'combo' ? [comboId] : ids, quantity, capacity: type === 'box' ? capacity || 4 : null })),
       over14: form.elements.over14.checked,
       expected_total_paise: reviewedQuote.total_paise,
       customer: {

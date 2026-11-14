@@ -90,7 +90,30 @@ pub fn initialize(conn: &Connection) -> rusqlite::Result<()> {
             params![id, name],
         )?;
     }
+    for (id, name, price) in [
+        ("fiery-pure", "Fiery & Pure Duo", 36000),
+        ("creamy-chatpata", "Creamy Chatpata Duo", 36000),
+        ("classic", "Classic Trio", 54000),
+        ("spicy", "Spicy Trio", 54000),
+        ("ultimate", "Ultimate Box", 72000),
+    ] {
+        conn.execute(
+            "INSERT OR IGNORE INTO products(id,name,price_paise) VALUES(?1,?2,?3)",
+            params![id, name, price],
+        )?;
+    }
     Ok(())
+}
+
+pub fn combo_ids(id: &str) -> Option<&'static [&'static str]> {
+    match id {
+        "fiery-pure" => Some(&["peri", "salt"]),
+        "creamy-chatpata" => Some(&["chataka", "cream"]),
+        "classic" => Some(&["cream", "peri", "salt"]),
+        "spicy" => Some(&["chataka", "peri", "salt"]),
+        "ultimate" => Some(&["chataka", "cream", "peri", "salt"]),
+        _ => None,
+    }
 }
 
 pub fn products(conn: &Connection) -> ApiResult<Vec<Product>> {
@@ -123,8 +146,8 @@ pub fn settings(conn: &Connection) -> ApiResult<Settings> {
 }
 
 pub fn quote(conn: &Connection, items: &[Item]) -> ApiResult<Quote> {
-    if items.is_empty() || items.len() > 4 {
-        return Err(AppError::bad("Select between one and four product types."));
+    if items.is_empty() || items.len() > 9 {
+        return Err(AppError::bad("Select between one and nine product types."));
     }
     let mut quantities = BTreeMap::new();
     for item in items {
