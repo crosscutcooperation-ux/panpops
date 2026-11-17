@@ -23,7 +23,22 @@ Checkout can be observed without blocking payments. Promote it to an enforcing
 `Content-Security-Policy` header only after production checkout telemetry shows
 the final Razorpay origins required by the account's enabled payment methods.
 
-The Razorpay Test Mode webhook is
+The Razorpay webhook is
 `https://panvibesonline.com/api/webhooks/razorpay`. It accepts signed
 `payment.captured` and `order.paid` notifications with the secret configured
 in `/etc/panpops.env`.
+
+SMTP credentials also live in `/etc/panpops.env`: `SMTP_HOST`, `SMTP_PORT`,
+`SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM`, and `ORDER_ADMIN_EMAIL`.
+The running Rust service owns the durable email worker; no separate mail daemon
+is needed. Order emails are queued atomically after a COD order or a captured
+online payment. The dashboard shows delivery status; check service logs for
+outbox IDs if a message is deferred. Logs omit addresses, message bodies and
+SMTP responses. Email failures do not cancel orders.
+
+Before the 0.2.0 rollout, back up the database with SQLite's backup API and keep
+the previous release and environment file. The migration adds payment methods,
+verification metadata and the mail outbox, and expires existing login sessions.
+Existing customers confirm their email on their next login. Test SMTP
+authentication and worker delivery to controlled mailboxes before switching the
+production symlink. Never use real customer addresses for deployment tests.
