@@ -8,10 +8,22 @@ pub fn initialize(db: &Connection) -> rusqlite::Result<()> {
       CREATE TABLE IF NOT EXISTS auth_attempts(email TEXT PRIMARY KEY,attempts INTEGER NOT NULL,started INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS order_owners(order_id TEXT PRIMARY KEY REFERENCES orders(id),user_id TEXT NOT NULL REFERENCES users(id));
       CREATE TABLE IF NOT EXISTS fulfilment(order_id TEXT PRIMARY KEY REFERENCES orders(id),status TEXT NOT NULL DEFAULT 'received',tracking TEXT NOT NULL DEFAULT '',version INTEGER NOT NULL DEFAULT 1);
-      CREATE TABLE IF NOT EXISTS order_events(id INTEGER PRIMARY KEY,order_id TEXT NOT NULL REFERENCES orders(id),status TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);")
+      CREATE TABLE IF NOT EXISTS order_events(id INTEGER PRIMARY KEY,order_id TEXT NOT NULL REFERENCES orders(id),status TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+      CREATE TABLE IF NOT EXISTS email_verifications(token_hash TEXT PRIMARY KEY,user_id TEXT NOT NULL UNIQUE REFERENCES users(id),expires_at INTEGER NOT NULL,created_at INTEGER NOT NULL);")?;
+    let columns = db
+        .prepare("PRAGMA table_info(users)")?
+        .query_map([], |r| r.get::<_, String>(1))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    if !columns.iter().any(|name| name == "email_verified") {
+        db.execute_batch(
+            "ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0;
+          DELETE FROM sessions;",
+        )?;
+    }
+    Ok(())
 }
 
-fn now() -> i64 {
+pub(crate) fn now() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
@@ -30,7 +42,7 @@ fn cookie_token(headers: &HeaderMap) -> &str {
         .unwrap_or("")
 }
 pub fn user(db: &Connection, headers: &HeaderMap) -> ApiResult<Option<Value>> {
-    Ok(db.query_row("SELECT u.id,u.name,u.email FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=?1 AND s.expires>?2",params![digest(cookie_token(headers)),now()],|r|Ok(json!({"id":r.get::<_,String>(0)?,"name":r.get::<_,String>(1)?,"email":r.get::<_,String>(2)?}))).optional()?)
+    Ok(db.query_row("SELECT u.id,u.name,u.email FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=?1 AND s.expires>?2 AND u.email_verified=1",params![digest(cookie_token(headers)),now()],|r|Ok(json!({"id":r.get::<_,String>(0)?,"name":r.get::<_,String>(1)?,"email":r.get::<_,String>(2)?}))).optional()?)
 }
 pub(crate) fn same_origin(state: &AppState, headers: &HeaderMap) -> ApiResult<()> {
     if let Some(origin) = headers.get(header::ORIGIN).and_then(|v| v.to_str().ok()) {
@@ -93,7 +105,8 @@ async fn authenticate(
     same_origin(&state, &headers)?;
     let email = body.email.trim().to_lowercase();
     if email.len() > 150
-        || !email.contains('@')
+        || email.parse::<lettre::message::Mailbox>().is_err()
+        || email.contains(['<', '>', '\r', '\n'])
         || body.password.len() < 12
         || body.password.len() > 128
         || (register && (!body.over14 || body.name.trim().is_empty() || body.name.len() > 100))
@@ -159,7 +172,8 @@ async fn authenticate(
     .await
     .map_err(|_| AppError::unavailable("Please retry signing in."))?
     .map_err(|_| AppError::bad("Email or password is incorrect."))?;
-    let db = state.connection()?;
+    let mut db = state.connection()?;
+    let tx = db.transaction_with_behavior(TransactionBehavior::Immediate)?;
     let id = if register {
         if existing.is_some() {
             return Err(AppError::bad(
@@ -167,7 +181,12 @@ async fn authenticate(
             ));
         }
         let id = Uuid::new_v4().to_string();
-        db.execute(
+        if state.config.mail.is_none() {
+            return Err(AppError::unavailable(
+                "Email verification is unavailable. Please try again shortly.",
+            ));
+        }
+        tx.execute(
             "INSERT INTO users(id,name,email,password_hash) VALUES(?1,?2,?3,?4)",
             params![id, body.name.trim(), email, result],
         )
@@ -178,6 +197,16 @@ async fn authenticate(
             .ok_or_else(|| AppError::bad("Email or password is incorrect."))?
             .0
     };
+    let verified: bool =
+        tx.query_row("SELECT email_verified FROM users WHERE id=?1", [&id], |r| {
+            r.get(0)
+        })?;
+    if !verified {
+        queue_verification(&state, &tx, &id, &email)?;
+        tx.commit()?;
+        return Ok(([(header::CACHE_CONTROL,"no-store")],Json(json!({"verification_required":true,"message":"Check your email for a confirmation link. Confirm your address, then return here to log in."}))).into_response());
+    }
+    tx.commit()?;
     db.execute("DELETE FROM auth_attempts WHERE email=?1", [&email])?;
     db.execute("DELETE FROM sessions WHERE expires<=?1", [now()])?;
     let token = format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple());
@@ -208,6 +237,94 @@ async fn authenticate(
             (header::SET_COOKIE, cookie),
             (header::CACHE_CONTROL, "no-store".into()),
         ],
+        Json(json!({"ok":true})),
+    )
+        .into_response())
+}
+
+fn queue_verification(state: &AppState, db: &Connection, id: &str, email: &str) -> ApiResult<()> {
+    if state.config.mail.is_none() {
+        return Err(AppError::unavailable(
+            "Email verification is unavailable. Please try again shortly.",
+        ));
+    }
+    let origin = state
+        .config
+        .frontend_origin
+        .as_deref()
+        .ok_or_else(|| AppError::unavailable("The storefront address is not configured."))?;
+    let recent: bool = db.query_row(
+        "SELECT EXISTS(SELECT 1 FROM email_verifications WHERE user_id=?1 AND created_at>?2)",
+        params![id, now() - 60],
+        |r| r.get(0),
+    )?;
+    if recent {
+        return Ok(());
+    }
+    // Retire previous links and any unsent verification mail before replacing them.
+    db.execute("DELETE FROM email_outbox WHERE kind='verification' AND dedupe_key IN(SELECT 'verify:'||token_hash FROM email_verifications WHERE user_id=?1)",[id])?;
+    db.execute("DELETE FROM email_verifications WHERE user_id=?1", [id])?;
+    let token = format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple());
+    let hash = digest(&token);
+    let expires = now() + 1800;
+    db.execute("INSERT INTO email_verifications(token_hash,user_id,expires_at,created_at) VALUES(?1,?2,?3,?4)",params![hash,id,expires,now()])?;
+    let body = format!(
+        "Confirm your PanPops email address\n\nOpen this link, then choose Confirm email:\n{}/login/#verify={token}\n\nThis single-use link expires in 30 minutes. After confirming, log in with your password.\n\nIf you did not request an account, ignore this email.\n\nPanPops team",
+        origin.trim_end_matches('/')
+    );
+    mail::queue(
+        db,
+        mail::Draft {
+            key: &format!("verify:{hash}"),
+            kind: "verification",
+            order: None,
+            to: email,
+            subject: "Confirm your PanPops email address",
+            body: &body,
+            expires: Some(expires),
+        },
+    )
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct VerifyEmail {
+    token: String,
+}
+
+pub async fn verify_email(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    Json(body): Json<VerifyEmail>,
+) -> ApiResult<Response> {
+    same_origin(&state, &headers)?;
+    if body.token.len() != 64 || !body.token.bytes().all(|c| c.is_ascii_hexdigit()) {
+        return Err(AppError::bad(
+            "This confirmation link is invalid or expired. Log in to request a new one.",
+        ));
+    }
+    let mut db = state.connection()?;
+    let tx = db.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    let hash = digest(&body.token);
+    let id: Option<String> = tx
+        .query_row(
+            "SELECT user_id FROM email_verifications WHERE token_hash=?1 AND expires_at>?2",
+            params![hash, now()],
+            |r| r.get(0),
+        )
+        .optional()?;
+    let id = id.ok_or_else(|| {
+        AppError::bad("This confirmation link is invalid or expired. Log in to request a new one.")
+    })?;
+    tx.execute("UPDATE users SET email_verified=1 WHERE id=?1", [&id])?;
+    tx.execute("DELETE FROM email_verifications WHERE user_id=?1", [&id])?;
+    tx.execute(
+        "DELETE FROM email_outbox WHERE dedupe_key=?1",
+        [format!("verify:{hash}")],
+    )?;
+    tx.commit()?;
+    Ok((
+        [(header::CACHE_CONTROL, "no-store")],
         Json(json!({"ok":true})),
     )
         .into_response())
@@ -271,7 +388,17 @@ mod tests {
         config.razorpay_secret = "example".into();
         let state = Arc::new(AppState::new(config).unwrap());
         let router = app(state.clone());
-        let (_,_,cookie)=call(&router,"/api/account/register","POST",json!({"email":"owner@example.com","name":"Owner","password":"long-test-password","over14":true}),"",false).await;
+        let credentials = json!({"email":"owner@example.com","name":"Owner","password":"long-test-password","over14":true});
+        call(
+            &router,
+            "/api/account/register",
+            "POST",
+            credentials.clone(),
+            "",
+            false,
+        )
+        .await;
+        let cookie = verify_and_login(&router, &state, credentials).await;
         let mut body = json!({"items":[{"id":"fiery-pure","quantity":1}],"packages":[{"kind":"combo","ids":["fiery-pure"],"quantity":1,"capacity":null}],"over14":true,"coupon_code":"CRUNCH15","expected_total_paise":1,"customer":{"full_name":"Owner","email":"owner@example.com","phone":"9999999999","address":"Test address","address2":"","city":"Mumbai","state":"Maharashtra","pincode":"400001","country":"India"}});
         let tampered = Request::builder()
             .method("POST")
@@ -363,22 +490,59 @@ mod tests {
                 bind: "127.0.0.1:0".into(),
                 database: ":memory:".into(),
                 frontend_dir: "../dist".into(),
-                frontend_origin: None,
+                frontend_origin: Some("http://127.0.0.1:5173".into()),
                 admin_token: "test-admin-token-at-least-32-characters".into(),
                 razorpay_key: String::new(),
                 razorpay_secret: String::new(),
                 webhook_secret: String::new(),
                 razorpay_base: "http://127.0.0.1:1".into(),
+                mail: Some(mail::MailConfig {
+                    host: "smtp.example.com".into(),
+                    port: 465,
+                    username: "test@example.com".into(),
+                    password: "test-only-password".into(),
+                    from: "test@example.com".into(),
+                    admin: "admin@example.com".into(),
+                }),
             })
             .unwrap(),
         )
     }
+    async fn verify_and_login(router: &Router, state: &AppState, credentials: Value) -> String {
+        let token = {
+            let db = state.connection().unwrap();
+            let body:String=db.query_row("SELECT body FROM email_outbox WHERE kind='verification' ORDER BY id DESC LIMIT 1",[],|r|r.get(0)).unwrap();
+            body.split("#verify=")
+                .nth(1)
+                .unwrap()
+                .split_whitespace()
+                .next()
+                .unwrap()
+                .to_string()
+        };
+        assert_eq!(
+            call(
+                router,
+                "/api/account/verify-email",
+                "POST",
+                json!({"token":token}),
+                "",
+                false
+            )
+            .await
+            .0,
+            StatusCode::OK
+        );
+        call(router, "/api/account/login", "POST", credentials, "", false)
+            .await
+            .2
+    }
     #[tokio::test]
-    async fn accounts_protect_orders_and_share_dispatch_updates() {
+    async fn email_confirmation_is_required_single_use_and_expires() {
         let state = state();
         let router = app(state.clone());
-        let credentials = json!({"email":"shopper@example.com","name":"Test Shopper","password":"correct horse battery staple","over14":true});
-        let (status, _, cookie) = call(
+        let credentials = json!({"email":"verify@example.com","name":"Verify Shopper","password":"a-long-test-password","over14":true});
+        let (status, data, cookie) = call(
             &router,
             "/api/account/register",
             "POST",
@@ -388,6 +552,107 @@ mod tests {
         )
         .await;
         assert_eq!(status, StatusCode::OK);
+        assert_eq!(data["verification_required"], true);
+        assert!(cookie.is_empty());
+        let (_, login, cookie) = call(
+            &router,
+            "/api/account/login",
+            "POST",
+            credentials.clone(),
+            "",
+            false,
+        )
+        .await;
+        assert_eq!(login["verification_required"], true);
+        assert!(cookie.is_empty());
+        let token = {
+            let db = state.connection().unwrap();
+            assert_eq!(
+                db.query_row("SELECT COUNT(*) FROM email_outbox", [], |r| r
+                    .get::<_, i64>(0))
+                    .unwrap(),
+                1
+            );
+            let body: String = db
+                .query_row("SELECT body FROM email_outbox", [], |r| r.get(0))
+                .unwrap();
+            let token = body
+                .split("#verify=")
+                .nth(1)
+                .unwrap()
+                .split_whitespace()
+                .next()
+                .unwrap()
+                .to_string();
+            let stored: String = db
+                .query_row("SELECT token_hash FROM email_verifications", [], |r| {
+                    r.get(0)
+                })
+                .unwrap();
+            assert_ne!(stored, token);
+            db.execute("UPDATE email_verifications SET expires_at=0", [])
+                .unwrap();
+            token
+        };
+        assert_eq!(
+            call(
+                &router,
+                "/api/account/verify-email",
+                "POST",
+                json!({"token":token}),
+                "",
+                false
+            )
+            .await
+            .0,
+            StatusCode::BAD_REQUEST
+        );
+        state
+            .connection()
+            .unwrap()
+            .execute(
+                "UPDATE email_verifications SET expires_at=?1",
+                [now() + 1800],
+            )
+            .unwrap();
+        let cookie = verify_and_login(&router, &state, credentials).await;
+        assert!(cookie.contains("HttpOnly"));
+        assert_eq!(
+            call(
+                &router,
+                "/api/account/verify-email",
+                "POST",
+                json!({"token":token}),
+                "",
+                false
+            )
+            .await
+            .0,
+            StatusCode::BAD_REQUEST
+        );
+        assert_eq!(
+            call(&router, "/api/account/me", "GET", json!({}), &cookie, false)
+                .await
+                .0,
+            StatusCode::OK
+        );
+    }
+    #[tokio::test]
+    async fn accounts_protect_orders_and_share_dispatch_updates() {
+        let state = state();
+        let router = app(state.clone());
+        let credentials = json!({"email":"shopper@example.com","name":"Test Shopper","password":"correct horse battery staple","over14":true});
+        let (status, _, _) = call(
+            &router,
+            "/api/account/register",
+            "POST",
+            credentials.clone(),
+            "",
+            false,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        let cookie = verify_and_login(&router, &state, credentials.clone()).await;
         assert!(cookie.contains("HttpOnly"));
         assert!(cookie.contains("SameSite=Lax"));
         let (_, me, _) = call(&router, "/api/account/me", "GET", json!({}), &cookie, false).await;

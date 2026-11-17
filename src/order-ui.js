@@ -22,6 +22,10 @@ export function renderOrder(order, admin = false, save) {
   const customer = document.createElement('p')
   customer.textContent = [order.customer?.full_name, order.customer?.email, order.customer?.phone, order.customer?.address, order.customer?.address2, order.customer?.city, order.customer?.state, order.customer?.pincode].filter(Boolean).join(' · ')
   card.append(customer)
+  const emails = document.createElement('p')
+  emails.className = 'order-email-status'
+  emails.textContent = (order.emails || []).map(mail => (mail.kind === 'order_admin' ? 'Admin email' : 'Customer email') + ': ' + (mail.status === 'sent' ? 'sent' : mail.status === 'failed' ? 'delivery failed' : 'queued')).join(' · ')
+  card.append(emails)
   const controls = document.createElement('form')
   controls.className = 'order-controls'
   controls.innerHTML = '<label>Delivery stage<select name="status"></select></label><label>Tracking / courier reference<input name="tracking" maxlength="200"></label><button class="quiet-control">Save update</button><label>Email template<select name="template"></select></label><a class="quiet-control">Compose email</a><p role="status"></p>'

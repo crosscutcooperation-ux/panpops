@@ -131,7 +131,8 @@ export function accountPage(mode) {
       <div class="account-card">
 
         <h1>${register ? 'Register' : 'Login'}</h1>
-        <p class="form-intro">${register ? 'Create your PanPops account to follow your orders.' : 'Sign in to view your orders and delivery updates.'}</p>
+        <p class="form-intro">${register ? 'Create your account, then confirm your email to follow your orders.' : 'Sign in to view your orders and delivery updates. Confirm your email before your first login.'}</p>
+        <div data-email-confirmation hidden><p>Confirm this email address for your PanPops account.</p><button class="commerce-button" type="button">Confirm email</button></div>
         <form method="post" data-account-form="${mode}">
           ${register ? billingField('Full name', 'fullName', 'required maxlength="100" autocomplete="off"') : ''}
           ${billingField('Email address', 'email', 'type="email" required maxlength="150" autocomplete="off"')}
@@ -139,9 +140,9 @@ export function accountPage(mode) {
             <span class="password-field"><input name="password" type="password" required minlength="12" maxlength="128" autocomplete="${register ? 'new-password' : 'current-password'}" placeholder="At least 12 characters"><button type="button" class="password-toggle" data-toggle-password aria-label="Show password">${icon('eye')}</button></span>
           </label>
           ${ageControl()}
-          <p class="form-message" data-account-message role="status"></p>
           <button class="commerce-button" type="submit">${register ? 'Create account' : 'Login'}</button>
         </form>
+        <p class="form-message" data-account-message role="status"></p>
         <p class="account-switch">${register ? 'Already have an account?' : 'New to PanPops?'} <a href="${register ? '/login/' : '/register/'}" data-account-switch>${register ? 'Login' : 'Create an account'}</a></p>
       </div>
     </section>`

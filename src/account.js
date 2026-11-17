@@ -19,6 +19,25 @@ export function initAccountPage() {
   const password = form.elements.password
   const toggle = document.querySelector('[data-toggle-password]')
   const next = new URLSearchParams(location.search).get('next') === 'checkout' ? '/checkout/' : '/account/'
+  const token = new URLSearchParams(location.hash.slice(1)).get('verify')
+  if (token) {
+    history.replaceState(null, '', location.pathname + location.search)
+    const panel = document.querySelector('[data-email-confirmation]')
+    form.hidden = true
+    panel.hidden = false
+    const confirm = panel.querySelector('button')
+    confirm.addEventListener('click', async () => {
+      confirm.disabled = true
+      message.textContent = 'Confirming your email…'
+      try {
+        await jsonRequest('account/verify-email', { token })
+        message.textContent = 'Email confirmed. You can now log in.'
+      } catch (error) { message.textContent = error.message }
+      panel.hidden = true
+      form.hidden = false
+      form.elements.email.focus()
+    }, { once: true })
+  }
   if (next === '/checkout/') document.querySelector('[data-account-switch]').search = '?next=checkout'
   toggle.addEventListener('click', () => {
     password.type = password.type === 'password' ? 'text' : 'password'
@@ -32,8 +51,9 @@ export function initAccountPage() {
     submit.disabled = true
     message.textContent = ''
     try {
-      await jsonRequest('account/' + form.dataset.accountForm, { name: form.elements.fullName?.value.trim() || '', email: form.elements.email.value.trim(), password: password.value, over14: form.elements.over14.checked })
+      const response = await jsonRequest('account/' + form.dataset.accountForm, { name: form.elements.fullName?.value.trim() || '', email: form.elements.email.value.trim(), password: password.value, over14: form.elements.over14.checked })
       password.value = ''
+      if (response.verification_required) { message.textContent = response.message; return }
       location.assign(next)
     } catch (error) { message.textContent = error.message }
     finally { submit.disabled = false }

@@ -1,5 +1,6 @@
 pub mod accounts;
 pub mod fulfilment;
+pub mod mail;
 pub mod payments;
 pub mod store;
 
@@ -87,6 +88,7 @@ pub struct Config {
     pub razorpay_secret: String,
     pub webhook_secret: String,
     pub razorpay_base: String,
+    pub mail: Option<mail::MailConfig>,
 }
 
 impl Config {
@@ -112,6 +114,7 @@ impl Config {
             razorpay_secret: secret,
             webhook_secret: env::var("RAZORPAY_WEBHOOK_SECRET").unwrap_or_default(),
             razorpay_base: "https://api.razorpay.com/v1".into(),
+            mail: mail::MailConfig::from_env()?,
         })
     }
 
@@ -142,6 +145,7 @@ impl AppState {
         }
         store::initialize(&db)?;
         accounts::initialize(&db)?;
+        mail::initialize(&db)?;
         #[cfg(unix)]
         if config.database != ":memory:" {
             use std::os::unix::fs::PermissionsExt;
@@ -175,6 +179,7 @@ pub fn app(state: Arc<AppState>) -> Router {
         .route("/api/config", get(config))
         .route("/api/account/register", post(accounts::register))
         .route("/api/account/login", post(accounts::login))
+        .route("/api/account/verify-email", post(accounts::verify_email))
         .route("/api/account/logout", post(accounts::logout))
         .route("/api/account/me", get(accounts::me))
         .route("/api/account/orders", get(accounts::orders))
@@ -370,10 +375,8 @@ impl Customer {
         if self.full_name.is_empty()
             || self.full_name.len() > 100
             || self.email.len() > 150
-            || !self
-                .email
-                .split_once('@')
-                .is_some_and(|(name, domain)| !name.is_empty() && domain.contains('.'))
+            || self.email.parse::<lettre::message::Mailbox>().is_err()
+            || self.email.contains(['<', '>', '\r', '\n'])
             || self.phone.len() != 10
             || !self.phone.bytes().all(|byte| byte.is_ascii_digit())
             || self.address.is_empty()
@@ -476,8 +479,16 @@ enum PaymentMethod {
     Cod,
 }
 impl PaymentMethod {
-    fn is_razorpay(&self) -> bool { *self == Self::Razorpay }
-    fn as_str(&self) -> &'static str { if self.is_razorpay() { "razorpay" } else { "cod" } }
+    fn is_razorpay(&self) -> bool {
+        *self == Self::Razorpay
+    }
+    fn as_str(&self) -> &'static str {
+        if self.is_razorpay() {
+            "razorpay"
+        } else {
+            "cod"
+        }
+    }
 }
 
 fn order_response(order: &store::Order, key_id: &str) -> Value {
@@ -540,7 +551,14 @@ async fn create_order(
             ));
         }
         amount = quote.total_paise;
-        let mut saved_details: Value = serde_json::from_str(&details).map_err(|_| AppError::bad("Invalid order details."))?;
+        if body.payment_method == PaymentMethod::Cod {
+            let recent: i64 = tx.query_row("SELECT COUNT(*) FROM orders WHERE payment_method='cod' AND created_at>datetime('now','-15 minutes') AND lower(json_extract(details,'$.customer.email'))=?1",[body.customer.email.to_lowercase()],|r|r.get(0))?;
+            if recent >= 3 {
+                return Err(AppError { status: StatusCode::TOO_MANY_REQUESTS, message:"Several COD orders were recently placed with this email. Please wait 15 minutes before placing another.".into() });
+            }
+        }
+        let mut saved_details: Value =
+            serde_json::from_str(&details).map_err(|_| AppError::bad("Invalid order details."))?;
         saved_details["receipt"] = json!(quote);
         tx.execute(
             "INSERT INTO orders(id,idempotency_key,request_hash,access_token,amount,status,details,payment_method) VALUES(?1,?2,?3,?4,?5,?6,?7,?8)",
@@ -555,6 +573,17 @@ async fn create_order(
             tx.execute(
                 "INSERT INTO order_owners(order_id,user_id) VALUES(?1,?2)",
                 params![id, account["id"].as_str()],
+            )?;
+        }
+        if body.payment_method == PaymentMethod::Cod {
+            mail::queue_order(
+                &tx,
+                &id,
+                state
+                    .config
+                    .mail
+                    .as_ref()
+                    .map(|config| config.admin.as_str()),
             )?;
         }
         tx.commit()?;
@@ -617,7 +646,9 @@ async fn verify_payment(
     let order = store::order_by_id(&*state.connection()?, &body.order_id)?
         .ok_or_else(AppError::unauthorized)?;
     authorize(&headers, &order.token)?;
-    if order.payment_method != "razorpay" { return Err(AppError::bad("This order uses cash on delivery.")); }
+    if order.payment_method != "razorpay" {
+        return Err(AppError::bad("This order uses cash on delivery."));
+    }
     let provider_id = order
         .provider_id
         .as_ref()
@@ -641,7 +672,19 @@ async fn verify_payment(
         return Err(AppError::bad("The payment does not match this order."));
     }
     let status = if payment["status"] == "captured" {
-        store::mark_paid(&*state.connection()?, &order.id, &body.payment_id)?;
+        let mut db = state.connection()?;
+        let tx = db.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        store::mark_paid(&tx, &order.id, &body.payment_id)?;
+        mail::queue_order(
+            &tx,
+            &order.id,
+            state
+                .config
+                .mail
+                .as_ref()
+                .map(|config| config.admin.as_str()),
+        )?;
+        tx.commit()?;
         "paid"
     } else {
         "pending"
@@ -701,6 +744,15 @@ async fn webhook(
     )?;
     if inserted == 1 {
         store::mark_paid(&tx, &order.id, payment_id)?;
+        mail::queue_order(
+            &tx,
+            &order.id,
+            state
+                .config
+                .mail
+                .as_ref()
+                .map(|config| config.admin.as_str()),
+        )?;
     }
     tx.commit()?;
     Ok(Json(json!({"ok":true})))
@@ -728,6 +780,7 @@ mod tests {
             razorpay_secret: "test-payment-secret".into(),
             webhook_secret: "test-webhook-secret".into(),
             razorpay_base: base,
+            mail: None,
         }
     }
 
@@ -737,6 +790,14 @@ mod tests {
         let mut config = settings("http://127.0.0.1:1".into());
         config.razorpay_key.clear();
         config.razorpay_secret.clear();
+        config.mail = Some(mail::MailConfig {
+            host: "smtp.example.com".into(),
+            port: 465,
+            username: "sender@example.com".into(),
+            password: "test-only".into(),
+            from: "sender@example.com".into(),
+            admin: "admin@example.com".into(),
+        });
         let state = Arc::new(AppState::new(config).unwrap());
         let router = app(state.clone());
         let body = json!({"items":[{"id":"chataka","quantity":1}],"payment_method":"cod","over14":true,"expected_total_paise":18000,"customer":{"full_name":"COD Shopper","email":"cod@example.com","phone":"9999999999","address":"Test address","address2":"","city":"Mumbai","state":"Maharashtra","pincode":"400001","country":"India"}});
@@ -749,24 +810,82 @@ mod tests {
         assert!(order["razorpay_order_id"].is_null());
         let (_, retry) = call(&router, "POST", "/api/orders", body.clone(), &headers).await;
         assert_eq!(retry["id"], order["id"]);
-        assert_eq!(state.connection().unwrap().query_row("SELECT COUNT(*) FROM orders", [], |r| r.get::<_, i64>(0)).unwrap(), 1);
+        assert_eq!(
+            state
+                .connection()
+                .unwrap()
+                .query_row("SELECT COUNT(*) FROM orders", [], |r| r.get::<_, i64>(0))
+                .unwrap(),
+            1
+        );
         let mut changed = body.clone();
         changed["payment_method"] = json!("razorpay");
-        assert_ne!(call(&router, "POST", "/api/orders", changed, &headers).await.0, StatusCode::OK);
+        assert_ne!(
+            call(&router, "POST", "/api/orders", changed, &headers)
+                .await
+                .0,
+            StatusCode::OK
+        );
         let mut tampered = body;
         tampered["expected_total_paise"] = json!(100);
         let other_key = Uuid::new_v4().to_string();
-        assert_eq!(call(&router,"POST","/api/orders",tampered,&[("x-idempotency-key",&other_key)]).await.0,StatusCode::CONFLICT);
-        let auth = [("authorization", "Bearer a-test-admin-token-with-32-characters")];
-        let (_, list) = call(&router,"GET","/api/admin/orders",json!({}),&auth).await;
-        assert_eq!(list["orders"][0]["payment_method"],"cod");
+        assert_eq!(
+            call(
+                &router,
+                "POST",
+                "/api/orders",
+                tampered,
+                &[("x-idempotency-key", &other_key)]
+            )
+            .await
+            .0,
+            StatusCode::CONFLICT
+        );
+        let auth = [(
+            "authorization",
+            "Bearer a-test-admin-token-with-32-characters",
+        )];
+        let (_, list) = call(&router, "GET", "/api/admin/orders", json!({}), &auth).await;
+        assert_eq!(list["orders"][0]["payment_method"], "cod");
+        {
+            let db = state.connection().unwrap();
+            assert_eq!(
+                db.query_row(
+                    "SELECT COUNT(*) FROM email_outbox WHERE kind='order_customer'",
+                    [],
+                    |r| r.get::<_, i64>(0)
+                )
+                .unwrap(),
+                1
+            );
+            let email: String = db
+                .query_row("SELECT body FROM email_outbox", [], |r| r.get(0))
+                .unwrap();
+            assert!(email.contains("Cash on delivery"));
+            assert!(email.contains("Chataka Pataka"));
+            assert_eq!(
+                db.query_row(
+                    "SELECT recipient FROM email_outbox WHERE kind='order_admin'",
+                    [],
+                    |r| r.get::<_, String>(0)
+                )
+                .unwrap(),
+                "admin@example.com"
+            );
+        }
         let path = format!("/api/admin/orders/{}", order["id"].as_str().unwrap());
-        for (version, stage) in ["processing", "out_for_delivery", "delivered"].into_iter().enumerate() {
+        for (version, stage) in ["processing", "out_for_delivery", "delivered"]
+            .into_iter()
+            .enumerate()
+        {
             let (status, data) = call(&router,"PUT",&path,json!({"status":stage,"tracking":"COD-TRACK","version":version,"cod_collected":stage=="delivered"}),&auth).await;
             assert_eq!(status, StatusCode::OK, "{data}");
         }
-        let stored = store::order_by_id(&state.connection().unwrap(),order["id"].as_str().unwrap()).unwrap().unwrap();
-        assert_eq!(stored.status,"paid");
+        let stored =
+            store::order_by_id(&state.connection().unwrap(), order["id"].as_str().unwrap())
+                .unwrap()
+                .unwrap();
+        assert_eq!(stored.status, "paid");
         assert!(stored.payment_id.is_none());
     }
 
@@ -994,6 +1113,15 @@ mod tests {
             order["id"]
         );
         assert_eq!(gateway.calls.load(Ordering::SeqCst), 1);
+        assert_eq!(
+            state
+                .connection()
+                .unwrap()
+                .query_row("SELECT COUNT(*) FROM email_outbox", [], |r| r
+                    .get::<_, i64>(0))
+                .unwrap(),
+            0
+        );
         body["customer"]["full_name"] = json!("Changed customer");
         assert_eq!(
             call(&router, "POST", "/api/orders", body, &headers).await.0,
@@ -1110,6 +1238,18 @@ mod tests {
         )
         .await;
         assert_eq!(saved["status"], "paid");
+        assert_eq!(
+            state
+                .connection()
+                .unwrap()
+                .query_row(
+                    "SELECT COUNT(*) FROM email_outbox WHERE kind='order_customer'",
+                    [],
+                    |r| r.get::<_, i64>(0)
+                )
+                .unwrap(),
+            1
+        );
         assert_eq!(
             call(
                 &router,

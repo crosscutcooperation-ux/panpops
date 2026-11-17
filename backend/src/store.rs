@@ -87,9 +87,12 @@ pub fn initialize(conn: &Connection) -> rusqlite::Result<()> {
            id TEXT PRIMARY KEY, received_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
          );",
     )?;
-    let has_method = conn.prepare("PRAGMA table_info(orders)")?
+    let has_method = conn
+        .prepare("PRAGMA table_info(orders)")?
         .query_map([], |r| r.get::<_, String>(1))?
-        .collect::<rusqlite::Result<Vec<_>>>()?.iter().any(|name| name == "payment_method");
+        .collect::<rusqlite::Result<Vec<_>>>()?
+        .iter()
+        .any(|name| name == "payment_method");
     if !has_method {
         conn.execute_batch("ALTER TABLE orders ADD COLUMN payment_method TEXT NOT NULL DEFAULT 'razorpay' CHECK(payment_method IN ('razorpay','cod'));")?;
     }
