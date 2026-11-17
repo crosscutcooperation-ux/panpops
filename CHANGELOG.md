@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1 — 2026-11-17
+
+### Changed
+- Replaced the homepage hero image with the supplied looping, muted product video. The full frame remains visible on mobile, with a pause control and a still poster for reduced motion.
+
 ## 0.2.0 — 2026-11-17
 
 ### Added

@@ -188,6 +188,38 @@ function initCrossing(stage) {
   render()
 }
 
+function initHeroVideo(video) {
+  const toggle = document.querySelector('[data-hero-video-toggle]')
+  let userPaused = motion.matches
+  let visible = true
+  const updateLabel = () => { toggle.textContent = video.paused ? 'Play video' : 'Pause video' }
+  function syncPlayback() {
+    if (userPaused || !visible || document.hidden) video.pause()
+    else video.play().catch(updateLabel)
+    updateLabel()
+  }
+  video.muted = true
+  video.autoplay = !motion.matches
+  toggle.hidden = false
+  toggle.addEventListener('click', () => { userPaused = !video.paused; syncPlayback() })
+  video.addEventListener('play', updateLabel)
+  video.addEventListener('pause', updateLabel)
+  video.addEventListener('error', () => { toggle.hidden = true })
+  motion.addEventListener('change', () => {
+    userPaused = motion.matches
+    video.autoplay = !motion.matches
+    syncPlayback()
+  })
+  document.addEventListener('visibilitychange', syncPlayback)
+  new IntersectionObserver(entries => {
+    visible = entries[0].isIntersecting
+    syncPlayback()
+  }).observe(video)
+  syncPlayback()
+}
+const heroVideo = document.querySelector('[data-hero-video]')
+if (heroVideo) initHeroVideo(heroVideo)
+
 async function startStore() {
   try { await loadCatalogue() }
   catch (error) { notify('Live prices are unavailable. ' + error.message) }

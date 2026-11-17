@@ -1,22 +1,31 @@
-.hero-image {
-  height: calc(100vh - 79px);
-  height: calc(100svh - 79px);
-  background: radial-gradient(ellipse at 50% 53%, #f9ecce 6%, #e8d4b5 62%, #d9b993 100%);
-}
-.hero-image-stage {
+.hero-video {
   position: relative;
-  display: grid;
-  place-items: center;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: #f5e4ca;
+}
+.hero-video-media {
+  display: block;
   width: 100%;
   height: 100%;
-  overflow: hidden;
-  background: inherit;
-}
-.hero-image-pack {
-  width: min(70vw, 440px);
-  height: 82%;
   object-fit: contain;
-  filter: drop-shadow(0 24px 20px #51291638);
+}
+.hero-video-toggle {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 0;
+  color: #fff7e9;
+  background: #261d16cc;
+  font-size: .75rem;
+  font-weight: 650;
+}
+.hero-video-toggle:focus-visible {
+  outline: 2px solid #fff7e9;
+  outline-offset: -5px;
 }
 .crossing-heading {
   min-height: 108px;
@@ -229,10 +238,6 @@
   filter: drop-shadow(0 12px 12px #230b1a56);
 }
 @media (max-width: 680px) {
-  .hero-image {
-    height: calc(100vh - 108px);
-    height: calc(100svh - 108px);
-  }
   .crossing-heading { min-height: 88px; align-items: start; justify-content: center; flex-direction: column; gap: 4px; }
   .crossing-stage { height: auto; display: grid; }
   .crossing-band {

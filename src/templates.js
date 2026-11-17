@@ -34,10 +34,12 @@ function header(page) {
 
 function home() {
   return `
-    <section class="hero-image" aria-label="PanPops roasted makhana">
-      <div class="hero-image-stage">
-        <img class="hero-image-pack" src="/media/chataka.webp" width="680" height="925" alt="PanPops Chataka Pataka roasted makhana pouch" fetchpriority="high" decoding="async">
-      </div>
+    <section class="hero-video" aria-label="PanPops roasted makhana. Pick your crunch.">
+      <video class="hero-video-media" id="hero-film" data-hero-video autoplay muted loop playsinline preload="metadata" poster="/media/panpops-hero-poster.jpg" width="1920" height="1080" aria-label="PanPops four roasted makhana flavours">
+        <source src="/media/panpops-hero.mp4" type="video/mp4">
+        <img src="/media/panpops-hero-poster.jpg" alt="Pick your crunch. Four PanPops roasted makhana flavours.">
+      </video>
+      <button class="hero-video-toggle" data-hero-video-toggle type="button" aria-controls="hero-film" hidden>Pause video</button>
     </section>
     <section id="products" class="flavour-crossing" aria-labelledby="crossing-heading">
       <div class="crossing-stage" data-crossing>
