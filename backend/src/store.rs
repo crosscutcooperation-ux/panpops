@@ -55,6 +55,7 @@ pub struct Order {
     pub status: String,
     pub provider_id: Option<String>,
     pub payment_id: Option<String>,
+    pub payment_method: String,
 }
 
 pub fn initialize(conn: &Connection) -> rusqlite::Result<()> {
@@ -86,6 +87,12 @@ pub fn initialize(conn: &Connection) -> rusqlite::Result<()> {
            id TEXT PRIMARY KEY, received_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
          );",
     )?;
+    let has_method = conn.prepare("PRAGMA table_info(orders)")?
+        .query_map([], |r| r.get::<_, String>(1))?
+        .collect::<rusqlite::Result<Vec<_>>>()?.iter().any(|name| name == "payment_method");
+    if !has_method {
+        conn.execute_batch("ALTER TABLE orders ADD COLUMN payment_method TEXT NOT NULL DEFAULT 'razorpay' CHECK(payment_method IN ('razorpay','cod'));")?;
+    }
     for (id, name) in [
         ("chataka", "Chataka Pataka"),
         ("cream", "Cream & Onion"),
@@ -293,7 +300,7 @@ pub fn quote_with_coupon(conn: &Connection, items: &[Item], code: &str) -> ApiRe
 pub fn order_by_key(conn: &Connection, key: &str) -> ApiResult<Option<Order>> {
     order_query(
         conn,
-        "SELECT id,request_hash,access_token,amount,status,provider_id,payment_id FROM orders WHERE idempotency_key=?1",
+        "SELECT id,request_hash,access_token,amount,status,provider_id,payment_id,payment_method FROM orders WHERE idempotency_key=?1",
         key,
     )
 }
@@ -301,7 +308,7 @@ pub fn order_by_key(conn: &Connection, key: &str) -> ApiResult<Option<Order>> {
 pub fn order_by_id(conn: &Connection, id: &str) -> ApiResult<Option<Order>> {
     order_query(
         conn,
-        "SELECT id,request_hash,access_token,amount,status,provider_id,payment_id FROM orders WHERE id=?1",
+        "SELECT id,request_hash,access_token,amount,status,provider_id,payment_id,payment_method FROM orders WHERE id=?1",
         id,
     )
 }
@@ -309,7 +316,7 @@ pub fn order_by_id(conn: &Connection, id: &str) -> ApiResult<Option<Order>> {
 pub fn order_by_provider(conn: &Connection, id: &str) -> ApiResult<Option<Order>> {
     order_query(
         conn,
-        "SELECT id,request_hash,access_token,amount,status,provider_id,payment_id FROM orders WHERE provider_id=?1",
+        "SELECT id,request_hash,access_token,amount,status,provider_id,payment_id,payment_method FROM orders WHERE provider_id=?1",
         id,
     )
 }
@@ -325,6 +332,7 @@ fn order_query(conn: &Connection, sql: &str, value: &str) -> ApiResult<Option<Or
                 status: row.get(4)?,
                 provider_id: row.get(5)?,
                 payment_id: row.get(6)?,
+                payment_method: row.get(7)?,
             })
         })
         .optional()?)
@@ -332,7 +340,7 @@ fn order_query(conn: &Connection, sql: &str, value: &str) -> ApiResult<Option<Or
 
 pub fn mark_paid(conn: &Connection, id: &str, payment_id: &str) -> ApiResult<()> {
     conn.execute(
-        "UPDATE orders SET status='paid',payment_id=?2 WHERE id=?1 AND status!='paid'",
+        "UPDATE orders SET status='paid',payment_id=?2 WHERE id=?1 AND status!='paid' AND payment_method='razorpay'",
         params![id, payment_id],
     )?;
     Ok(())

@@ -55,6 +55,14 @@ export function initCheckoutPage(root) {
   const couponMessage = root.querySelector('[data-coupon-message]')
   const applyCoupon = root.querySelector('[data-apply-coupon]')
   const removeCoupon = root.querySelector('[data-remove-coupon]')
+  const paymentMethod = () => form.elements.paymentMethod.value
+  function updatePaymentChoice() {
+    const cod = paymentMethod() === 'cod'
+    place.textContent = backendEnabled ? (cod ? 'Place cash on delivery order' : 'Pay with Razorpay') : 'Complete preview'
+    root.querySelector('[data-payment-note]').textContent = !backendEnabled ? 'This preview collects no payment.' : cod ? 'Pay the total shown when your order is delivered.' : 'Payment opens securely through Razorpay.'
+    place.disabled = backendEnabled && !cod && !gatewayReady
+  }
+  form.querySelectorAll('[name=paymentMethod]').forEach(input => input.addEventListener('change', updatePaymentChoice))
   async function setCoupon(code) {
     if (couponBusy) return
     couponBusy = true
@@ -88,13 +96,10 @@ export function initCheckoutPage(root) {
     place.textContent = 'Pay with Razorpay'
     request('config').then(config => {
       gatewayReady = config.payments_ready
-      if (!gatewayReady) {
-        place.disabled = true
-        reviewMessage.textContent = 'Payment setup is required on the server.'
-      }
+      updatePaymentChoice()
     }).catch(error => {
       gatewayReady = false
-      place.disabled = true
+      updatePaymentChoice()
       detailsMessage.textContent = error.message
     })
   }
@@ -199,7 +204,7 @@ export function initCheckoutPage(root) {
         : 'All items scanned. Checking live prices…'
   }
 
-  function finish(orderId) {
+  function finish(orderId, method = 'razorpay') {
     finished = true
     packingEpoch += 1
     lineup.hidden = true
@@ -214,10 +219,11 @@ export function initCheckoutPage(root) {
     review.hidden = true
     complete.hidden = false
     if (backendEnabled) {
-      complete.querySelector('h2').textContent = 'Payment confirmed'
-      complete.querySelector('p:not(.commerce-kicker)').textContent = 'Your payment is recorded. Order reference ' + orderId + '.'
+      const cod = method === 'cod'
+      complete.querySelector('h2').textContent = cod ? 'Order placed' : 'Payment confirmed'
+      complete.querySelector('p:not(.commerce-kicker)').textContent = (cod ? 'Your cash on delivery order is confirmed. Pay ' + rupees(reviewedQuote.total_paise) + ' when it arrives. ' : 'Your payment is recorded. ') + 'Order reference ' + orderId + '. A confirmation will be emailed to you.'
       complete.querySelector('.commerce-kicker').textContent = 'PANPOPS ORDER'
-      status.textContent = 'Payment confirmed.'
+      status.textContent = cod ? 'Cash on delivery order placed.' : 'Payment confirmed.'
     } else status.textContent = 'Preview complete.'
     complete.querySelector('h2').tabIndex = -1
     complete.querySelector('h2').focus({ preventScroll: true })
@@ -238,8 +244,9 @@ export function initCheckoutPage(root) {
       await checkPaymentStatus()
       return
     }
-    if (!gatewayReady) throw new Error('Payment setup is required on the server.')
-    await loadRazorpay()
+    const cod = paymentMethod() === 'cod'
+    if (!cod && !gatewayReady) throw new Error('Payment setup is required on the server.')
+    if (!cod) await loadRazorpay()
     const customer = Object.fromEntries(new FormData(form))
     const payload = {
       items: orderItems(getCart()),
@@ -247,6 +254,7 @@ export function initCheckoutPage(root) {
       over14: form.elements.over14.checked,
       expected_total_paise: reviewedQuote.total_paise,
       coupon_code: reviewedQuote.coupon_code || '',
+      payment_method: paymentMethod(),
       customer: {
         full_name: customer.fullName, email: customer.email, phone: customer.phone,
         address: customer.address, address2: customer.address2 || '', city: customer.city,
@@ -259,6 +267,7 @@ export function initCheckoutPage(root) {
     }
     const order = await jsonRequest('orders', payload, { headers: { 'X-Idempotency-Key': paymentAttempt.key } })
     paymentAttempt.order = order
+    if (order.payment_method === 'cod') { finish(order.id, 'cod'); return }
     if (order.status === 'paid') { finish(order.id); return }
 
     const checkout = new window.Razorpay({
@@ -325,8 +334,8 @@ export function initCheckoutPage(root) {
       renderReceipt(lines, quote)
       reviewedCart = fingerprint(lines)
       reviewedLines = lines
-      reviewMessage.textContent = backendEnabled && !gatewayReady ? 'Payment setup is required on the server.' : ''
-      place.disabled = backendEnabled && !gatewayReady
+      reviewMessage.textContent = backendEnabled && !gatewayReady && paymentMethod() !== 'cod' ? 'Online payment is unavailable. Cash on delivery is available.' : ''
+      updatePaymentChoice()
       details.hidden = true
       review.hidden = false
       review.querySelector('h2').tabIndex = -1
@@ -356,7 +365,7 @@ export function initCheckoutPage(root) {
     if (!getCart().length) { setEmptyState([]); return }
     if (!backendEnabled) { finish(); return }
     place.disabled = true
-    reviewMessage.textContent = 'Opening payment…'
+    reviewMessage.textContent = paymentMethod() === 'cod' ? 'Placing your order…' : 'Opening payment…'
     try { await startPayment() }
     catch (error) {
       reviewMessage.textContent = error.message

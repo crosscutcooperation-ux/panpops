@@ -87,6 +87,7 @@ export function checkoutPage() {
                   <label class="form-field"><span>Country</span><select name="country" autocomplete="country-name"><option>India</option></select></label>
                 </div>
                 <div class="coupon-field"><label class="form-field"><span>Coupon code</span><input name="coupon" maxlength="40" autocomplete="off" autocapitalize="characters" placeholder="Enter coupon code" data-coupon-input></label><button class="quiet-control" type="button" data-apply-coupon>Apply</button><button class="quiet-control" type="button" data-remove-coupon hidden>Remove</button><p role="status" data-coupon-message></p></div>
+                <fieldset class="payment-options"><legend>Payment method</legend><label><input type="radio" name="paymentMethod" value="razorpay" checked><span>Pay online<small>Secure checkout with Razorpay</small></span></label><label><input type="radio" name="paymentMethod" value="cod"><span>Cash on delivery<small>Place your order now. Pay when it arrives.</small></span></label></fieldset>
                 ${ageControl()}
                 <p class="form-message" data-checkout-message role="status"></p>
                 <button class="commerce-button" type="submit">Review order</button>
@@ -167,7 +168,7 @@ export function adminPage() {
           <label class="form-field"><span>Free delivery from (₹, 0 disables)</span><input name="threshold" type="number" step=".01" min="0" max="1000000" required></label>
           <button class="commerce-button" type="submit">Save delivery</button>
         </form>
-        <section class="orders-dashboard"><h2>Orders & dispatch</h2><p>Open an order to prepare it, record pickup, or update delivery. Email opens a prepared message in your mail app.</p><label class="form-field">Filter orders<select data-order-filter><option value="all">All orders</option><option value="paid">Paid / ready to process</option><option value="processing">Preparing</option><option value="ready_for_pickup">Ready for pickup</option><option value="picked_up">Picked up</option><option value="out_for_delivery">Out for delivery</option><option value="delivered">Delivered</option><option value="cancelled">Cancelled</option></select></label><div data-admin-orders></div></section>
+        <section class="orders-dashboard"><h2>Orders & dispatch</h2><p>Open an order to prepare it, record pickup, or update delivery. COD orders can be prepared before payment is collected.</p><label class="form-field">Filter orders<select data-order-filter><option value="all">All orders</option><option value="cod">Cash on delivery</option><option value="razorpay">Razorpay / online</option><option value="cod_pending">COD / payment due</option><option value="paid">Paid</option><option value="processing">Preparing</option><option value="ready_for_pickup">Ready for pickup</option><option value="picked_up">Picked up</option><option value="out_for_delivery">Out for delivery</option><option value="delivered">Delivered</option><option value="cancelled">Cancelled</option></select></label><div data-admin-orders></div></section>
       </div>
     </section>`
 }

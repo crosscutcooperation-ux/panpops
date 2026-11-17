@@ -9,7 +9,8 @@ export function renderOrder(order, admin = false, save) {
   card.querySelector('h2').title = order.id
   card.querySelector('strong').textContent = money(order.amount_paise / 100)
   card.querySelector('.order-items').textContent = itemsText(order)
-  card.querySelector('.order-payment').textContent = 'Payment: ' + order.status + ' · ' + order.created_at + ' UTC'
+  const cod = order.payment_method === 'cod'
+  card.querySelector('.order-payment').textContent = (cod ? 'Cash on delivery' : 'Razorpay / online') + ' · ' + (order.status === 'paid' ? (cod ? 'Payment collected' : 'Paid') : order.status === 'cod_pending' ? 'Payment due on delivery' : order.status.replaceAll('_', ' ')) + ' · ' + order.created_at + ' UTC'
   card.querySelector('.order-delivery').textContent = statuses[order.fulfilment_status] || order.fulfilment_status
   card.querySelector('.order-tracking').textContent = order.tracking ? 'Tracking: ' + order.tracking : ''
   for (const event of order.history || []) {
@@ -27,14 +28,20 @@ export function renderOrder(order, admin = false, save) {
   for (const [value, text] of Object.entries(statuses)) controls.elements.status.add(new Option(text, value))
   controls.elements.status.value = order.fulfilment_status
   controls.elements.tracking.value = order.tracking
+  if (cod && order.status === 'cod_pending') {
+    const label = document.createElement('label')
+    label.className = 'age-control'
+    label.innerHTML = '<input type="checkbox" name="codCollected"><span>COD payment collected (save with Delivered)</span>'
+    controls.querySelector('button').before(label)
+  }
   const templates = { confirmation: 'Order confirmation', processing: 'Preparing order', ready_for_pickup: 'Ready for pickup', picked_up: 'Pickup confirmation', out_for_delivery: 'Out for delivery', delivered: 'Delivery confirmation', cancelled: 'Cancellation', payment: 'Payment pending' }
   for (const [value,text] of Object.entries(templates)) controls.elements.template.add(new Option(text,value))
-  controls.elements.template.value = order.status !== 'paid' ? 'payment' : order.fulfilment_status === 'received' ? 'confirmation' : order.fulfilment_status
+  controls.elements.template.value = order.status !== 'paid' && !cod ? 'payment' : order.fulfilment_status === 'received' ? 'confirmation' : order.fulfilment_status
   const email = controls.querySelector('a')
   function updateEmail() {
     const template = controls.elements.template.value
     const label = templates[template]
-    const text = template === 'payment' ? 'Your payment is still pending. Please contact us if you need help completing your order.' : template === 'confirmation' ? 'Thank you for your order. Your payment has been received.' : 'Order update: ' + (statuses[template] || label) + '.'
+    const text = template === 'payment' ? (cod ? 'Your order is cash on delivery. Please pay when your order arrives.' : 'Your payment is still pending. Please contact us if you need help completing your order.') : template === 'confirmation' ? (cod ? 'Thank you for your order. Your cash on delivery order has been received.' : 'Thank you for your order. Your payment has been received.') : 'Order update: ' + (statuses[template] || label) + '.'
     const body = 'Hi ' + (order.customer?.full_name || 'there') + ',\n\n' + text + '\n\nOrder: ' + order.id + '\nItems: ' + itemsText(order) + '\nTotal: ' + money(order.amount_paise / 100) + (order.tracking ? '\nTracking: ' + order.tracking : '') + '\n\nSee updates in My account on our website.\n\nPanPops team'
     email.href = 'mailto:' + encodeURIComponent(order.customer?.email || '') + '?subject=' + encodeURIComponent('PanPops · ' + label + ' · ' + order.id.slice(0, 8)) + '&body=' + encodeURIComponent(body)
   }
@@ -44,7 +51,7 @@ export function renderOrder(order, admin = false, save) {
     event.preventDefault()
     const button = controls.querySelector('button')
     button.disabled = true
-    try { await save(order, { status: controls.elements.status.value, tracking: controls.elements.tracking.value, version: order.version }) }
+    try { await save(order, { status: controls.elements.status.value, tracking: controls.elements.tracking.value, version: order.version, cod_collected: !!controls.elements.codCollected?.checked }) }
     catch (error) { controls.querySelector('[role=status]').textContent = error.message }
     finally { button.disabled = false }
   })

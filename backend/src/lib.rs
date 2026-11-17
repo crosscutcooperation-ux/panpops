@@ -464,11 +464,25 @@ struct OrderRequest {
     expected_total_paise: i64,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     coupon_code: String,
+    #[serde(default, skip_serializing_if = "PaymentMethod::is_razorpay")]
+    payment_method: PaymentMethod,
+}
+
+#[derive(Default, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+enum PaymentMethod {
+    #[default]
+    Razorpay,
+    Cod,
+}
+impl PaymentMethod {
+    fn is_razorpay(&self) -> bool { *self == Self::Razorpay }
+    fn as_str(&self) -> &'static str { if self.is_razorpay() { "razorpay" } else { "cod" } }
 }
 
 fn order_response(order: &store::Order, key_id: &str) -> Value {
     json!({
-        "id": order.id, "amount_paise": order.amount, "status": order.status,
+        "id": order.id, "amount_paise": order.amount, "status": order.status, "payment_method": order.payment_method,
         "razorpay_order_id": order.provider_id, "key_id": key_id, "order_token": order.token, "currency":"INR",
     })
 }
@@ -478,7 +492,8 @@ async fn create_order(
     headers: HeaderMap,
     Json(mut body): Json<OrderRequest>,
 ) -> ApiResult<Json<Value>> {
-    if !state.config.payments_ready() {
+    accounts::same_origin(&state, &headers)?;
+    if body.payment_method.is_razorpay() && !state.config.payments_ready() {
         return Err(AppError::unavailable(
             "Razorpay is not configured on the server.",
         ));
@@ -511,7 +526,7 @@ async fn create_order(
                     "This request reference belongs to different order details.",
                 ));
             }
-            if existing.provider_id.is_none() {
+            if existing.payment_method == "razorpay" && existing.provider_id.is_none() {
                 return Err(AppError::conflict(
                     "Order creation needs reconciliation. Check the dashboard using the original order reference.",
                 ));
@@ -525,9 +540,11 @@ async fn create_order(
             ));
         }
         amount = quote.total_paise;
+        let mut saved_details: Value = serde_json::from_str(&details).map_err(|_| AppError::bad("Invalid order details."))?;
+        saved_details["receipt"] = json!(quote);
         tx.execute(
-            "INSERT INTO orders(id,idempotency_key,request_hash,access_token,amount,status,details) VALUES(?1,?2,?3,?4,?5,'creating',?6)",
-            params![id, key, request_hash, token, amount, details],
+            "INSERT INTO orders(id,idempotency_key,request_hash,access_token,amount,status,details,payment_method) VALUES(?1,?2,?3,?4,?5,?6,?7,?8)",
+            params![id, key, request_hash, token, amount, if body.payment_method.is_razorpay() { "creating" } else { "cod_pending" }, saved_details.to_string(), body.payment_method.as_str()],
         )?;
         if let Some(account) = accounts::user(&tx, &headers)? {
             if account["email"].as_str() != Some(&body.customer.email.to_lowercase()) {
@@ -541,6 +558,12 @@ async fn create_order(
             )?;
         }
         tx.commit()?;
+    }
+
+    if body.payment_method == PaymentMethod::Cod {
+        let order = store::order_by_id(&*state.connection()?, &id)?
+            .ok_or_else(|| AppError::unavailable("Could not read the created order."))?;
+        return Ok(Json(order_response(&order, "")));
     }
 
     let provider_id = match payments::create_order(&state, &id, amount).await {
@@ -574,7 +597,7 @@ async fn order_status(
     let order = store::order_by_id(&conn, &id)?.ok_or_else(AppError::unauthorized)?;
     authorize(&headers, &order.token)?;
     Ok(Json(
-        json!({ "id": order.id, "status":order.status,"amount_paise":order.amount,"currency":"INR" }),
+        json!({ "id": order.id, "status":order.status,"payment_method":order.payment_method,"amount_paise":order.amount,"currency":"INR" }),
     ))
 }
 
@@ -594,6 +617,7 @@ async fn verify_payment(
     let order = store::order_by_id(&*state.connection()?, &body.order_id)?
         .ok_or_else(AppError::unauthorized)?;
     authorize(&headers, &order.token)?;
+    if order.payment_method != "razorpay" { return Err(AppError::bad("This order uses cash on delivery.")); }
     let provider_id = order
         .provider_id
         .as_ref()
@@ -705,6 +729,45 @@ mod tests {
             webhook_secret: "test-webhook-secret".into(),
             razorpay_base: base,
         }
+    }
+
+    #[tokio::test]
+    async fn cod_places_once_without_gateway_and_can_be_dispatched() {
+        // No gateway credentials or reachable gateway: COD must still succeed.
+        let mut config = settings("http://127.0.0.1:1".into());
+        config.razorpay_key.clear();
+        config.razorpay_secret.clear();
+        let state = Arc::new(AppState::new(config).unwrap());
+        let router = app(state.clone());
+        let body = json!({"items":[{"id":"chataka","quantity":1}],"payment_method":"cod","over14":true,"expected_total_paise":18000,"customer":{"full_name":"COD Shopper","email":"cod@example.com","phone":"9999999999","address":"Test address","address2":"","city":"Mumbai","state":"Maharashtra","pincode":"400001","country":"India"}});
+        let key = Uuid::new_v4().to_string();
+        let headers = [("x-idempotency-key", key.as_str())];
+        let (status, order) = call(&router, "POST", "/api/orders", body.clone(), &headers).await;
+        assert_eq!(status, StatusCode::OK, "{order}");
+        assert_eq!(order["payment_method"], "cod");
+        assert_eq!(order["status"], "cod_pending");
+        assert!(order["razorpay_order_id"].is_null());
+        let (_, retry) = call(&router, "POST", "/api/orders", body.clone(), &headers).await;
+        assert_eq!(retry["id"], order["id"]);
+        assert_eq!(state.connection().unwrap().query_row("SELECT COUNT(*) FROM orders", [], |r| r.get::<_, i64>(0)).unwrap(), 1);
+        let mut changed = body.clone();
+        changed["payment_method"] = json!("razorpay");
+        assert_ne!(call(&router, "POST", "/api/orders", changed, &headers).await.0, StatusCode::OK);
+        let mut tampered = body;
+        tampered["expected_total_paise"] = json!(100);
+        let other_key = Uuid::new_v4().to_string();
+        assert_eq!(call(&router,"POST","/api/orders",tampered,&[("x-idempotency-key",&other_key)]).await.0,StatusCode::CONFLICT);
+        let auth = [("authorization", "Bearer a-test-admin-token-with-32-characters")];
+        let (_, list) = call(&router,"GET","/api/admin/orders",json!({}),&auth).await;
+        assert_eq!(list["orders"][0]["payment_method"],"cod");
+        let path = format!("/api/admin/orders/{}", order["id"].as_str().unwrap());
+        for (version, stage) in ["processing", "out_for_delivery", "delivered"].into_iter().enumerate() {
+            let (status, data) = call(&router,"PUT",&path,json!({"status":stage,"tracking":"COD-TRACK","version":version,"cod_collected":stage=="delivered"}),&auth).await;
+            assert_eq!(status, StatusCode::OK, "{data}");
+        }
+        let stored = store::order_by_id(&state.connection().unwrap(),order["id"].as_str().unwrap()).unwrap().unwrap();
+        assert_eq!(stored.status,"paid");
+        assert!(stored.payment_id.is_none());
     }
 
     fn signature(secret: &str, bytes: &[u8]) -> String {

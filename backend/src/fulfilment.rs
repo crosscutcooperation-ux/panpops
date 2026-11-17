@@ -24,7 +24,8 @@ pub fn list(db: &Connection, user: Option<&str>) -> ApiResult<Vec<Value>> {
                 Ok(json!({"status":r.get::<_,String>(0)?,"created_at":r.get::<_,String>(1)?}))
             })?
             .collect::<rusqlite::Result<Vec<_>>>()?;
-        result.push(json!({"id":id,"amount_paise":amount,"status":payment,"created_at":created,"customer":details["customer"],"items":details["items"],"packages":details["packages"],"fulfilment_status":status,"tracking":tracking,"version":version,"history":history}));
+        let method: String = db.query_row("SELECT payment_method FROM orders WHERE id=?1",[&id],|r| r.get(0))?;
+        result.push(json!({"id":id,"amount_paise":amount,"status":payment,"payment_method":method,"created_at":created,"customer":details["customer"],"items":details["items"],"packages":details["packages"],"fulfilment_status":status,"tracking":tracking,"version":version,"history":history}));
     }
     Ok(result)
 }
@@ -34,6 +35,8 @@ pub struct Update {
     status: String,
     tracking: String,
     version: i64,
+    #[serde(default)]
+    cod_collected: bool,
 }
 pub async fn update(
     State(state): State<Arc<AppState>>,
@@ -61,10 +64,13 @@ pub async fn update(
     let mut db = state.connection()?;
     let tx = db.transaction_with_behavior(TransactionBehavior::Immediate)?;
     let order = store::order_by_id(&tx, &id)?.ok_or_else(|| AppError::bad("Order not found."))?;
-    if order.status != "paid" && body.status != "cancelled" {
+    if order.status != "paid" && !(order.payment_method == "cod" && order.status == "cod_pending") && body.status != "cancelled" {
         return Err(AppError::bad(
             "Payment must be captured before dispatching an order.",
         ));
+    }
+    if body.cod_collected && (order.payment_method != "cod" || body.status != "delivered") {
+        return Err(AppError::bad("Record COD collection only when the COD order is delivered."));
     }
     tx.execute(
         "INSERT OR IGNORE INTO fulfilment(order_id,version) VALUES(?1,0)",
@@ -98,6 +104,9 @@ pub async fn update(
             "INSERT INTO order_events(order_id,status) VALUES(?1,?2)",
             params![id, body.status],
         )?;
+    }
+    if body.cod_collected {
+        tx.execute("UPDATE orders SET status='paid' WHERE id=?1 AND payment_method='cod' AND status='cod_pending'", [&id])?;
     }
     tx.commit()?;
     Ok(Json(json!({"ok":true})))

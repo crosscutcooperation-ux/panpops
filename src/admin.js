@@ -15,7 +15,7 @@ export function initAdminPage(root) {
   let orderList = []
   const filter = root.querySelector('[data-order-filter]')
   function renderOrders() {
-    const visible = orderList.filter(order => filter.value === 'all' || order.status === filter.value || order.fulfilment_status === filter.value)
+    const visible = orderList.filter(order => filter.value === 'all' || order.payment_method === filter.value || order.status === filter.value || order.fulfilment_status === filter.value)
     orderRows.replaceChildren(...visible.map(order => renderOrder(order, true, async (order, body) => {
       await jsonRequest('admin/orders/' + encodeURIComponent(order.id), body, { method: 'PUT', headers: headers() })
       await load()

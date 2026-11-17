@@ -32,7 +32,7 @@ fn cookie_token(headers: &HeaderMap) -> &str {
 pub fn user(db: &Connection, headers: &HeaderMap) -> ApiResult<Option<Value>> {
     Ok(db.query_row("SELECT u.id,u.name,u.email FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=?1 AND s.expires>?2",params![digest(cookie_token(headers)),now()],|r|Ok(json!({"id":r.get::<_,String>(0)?,"name":r.get::<_,String>(1)?,"email":r.get::<_,String>(2)?}))).optional()?)
 }
-fn same_origin(state: &AppState, headers: &HeaderMap) -> ApiResult<()> {
+pub(crate) fn same_origin(state: &AppState, headers: &HeaderMap) -> ApiResult<()> {
     if let Some(origin) = headers.get(header::ORIGIN).and_then(|v| v.to_str().ok()) {
         let host = headers
             .get(header::HOST)
