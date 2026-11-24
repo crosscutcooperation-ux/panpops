@@ -1,11 +1,11 @@
-import { products, productById, combos, money, productUrl, front, back, MAX_BOX } from './catalog.js'
+import { products, productById, combos, money, productUrl, front, back, MAX_BOX, USE_PRODUCT_PHOTOS } from './catalog.js'
 import { icon } from './icons.js'
 
 export const productStyle = product => '--accent:' + product.accent + ';--stage:' + product.stage + ';--light:' + product.light + ';--packet:' + product.pack
 const eyebrow = label => '<p class="eyebrow">' + label + '</p>'
 
 function packImage(product, className = '', lazy = false) {
-  return '<img class="' + className + '" src="' + front(product) + '" width="680" height="925" alt="' + product.name + ' PanPops pouch"' + (lazy ? ' loading="lazy"' : '') + '>'
+  return '<img class="' + className + '" src="' + front(product) + '" width="1254" height="1254" alt="' + product.name + ' PanPops pouch"' + (lazy ? ' loading="lazy"' : '') + '>'
 }
 
 function shopSelection(standalone = false, recommendedFor = null) {
@@ -26,7 +26,7 @@ function shopSelection(standalone = false, recommendedFor = null) {
         </div>
         <div class="shop-toolbar">
           ${recommendedFor ? '<a class="recommendations-all" href="/shop/">Shop all products ' + '</a>' : '<div class="shop-filters" role="group" aria-label="Filter products">' + filters.map(([value, label]) => `<button type="button" data-filter="${value}" aria-pressed="${value === 'all'}">${label}</button>`).join('') + '</div>'}
-          <button class="motion-toggle" type="button" data-shop-motion aria-pressed="true">${icon('spin')} Rotation <span>on</span></button>
+          <button class="motion-toggle" type="button" data-shop-motion aria-pressed="true"${USE_PRODUCT_PHOTOS ? ' hidden' : ''}>${icon('spin')} Rotation <span>on</span></button>
         </div>
         <div class="shop-grid" data-shop-grid>
           <div class="shop-canvas" data-shop-canvas aria-hidden="true"></div>
@@ -55,7 +55,7 @@ function shopSelection(standalone = false, recommendedFor = null) {
             <div class="shop-item-copy"><p class="studio-kicker">2–6 POUCHES / ALL YOUR FAVOURITES</p><h3><a href="/build-a-box/">Build a box</a></h3><p class="shop-item-note">A little spicy. A little creamy. Entirely yours.</p><div class="shop-item-buy"><span>From <b data-selection-price="minimum-box">${money(Math.min(...products.map(product => product.price)) * 2)}</b></span><a href="/build-a-box/" aria-label="Choose your box flavours">${icon('plus')}</a></div></div>
           </article>
         </div>
-        <div class="shop-bottom"><p data-shop-count role="status" aria-live="polite">${items.length + 1} ways to find your happy crunch.</p><span class="studio-kicker">SLOW TURNS. BIG CRUNCH.</span></div>
+        <div class="shop-bottom"><p data-shop-count role="status" aria-live="polite">${items.length + 1} ways to find your happy crunch.</p></div>
       </div>
     </section>`
 }
@@ -76,11 +76,11 @@ export function productPage(selection) {
     <section class="shell inner-page product-page ${combo ? 'combo-product-page' : ''}" data-product="${product.id}" style="${productStyle(product)};--pack-count:${combo ? selection.ids.length : 1}">
       <div class="breadcrumbs"><a href="/shop/">Shop</a><span>/</span><span>${product.name}</span></div>
       <div class="product-layout">
-        <div class="product-stage stage" data-stage>
-          <div class="product-disc" aria-hidden="true"></div>
+        <div class="product-stage stage${USE_PRODUCT_PHOTOS ? ' product-photo-stage' : ''}" data-stage>
+          <div class="product-disc" aria-hidden="true"${USE_PRODUCT_PHOTOS ? ' hidden' : ''}></div>
           <div class="product-stills">${combo ? '<div class="product-front combo-stills">' + selection.ids.map(id => packImage(productById[id])).join('') + '</div><div class="product-back combo-stills" hidden>' + selection.ids.map(id => '<img src="' + back(productById[id]) + '" alt="' + productById[id].name + ' back-of-pack label">').join('') + '</div>' : packImage(product, 'product-front') + '<img class="product-back" src="' + back(product) + '" width="946" height="1500" alt="' + product.name + ' back-of-pack label" hidden>'}</div>
           <div class="scene-host" data-scene aria-hidden="true"></div>
-          <button class="motion-toggle product-motion" type="button" data-product-motion aria-pressed="true">${icon('spin')} Rotation <span>on</span></button>
+          <button class="motion-toggle product-motion" type="button" data-product-motion aria-pressed="true"${USE_PRODUCT_PHOTOS ? ' hidden' : ''}>${icon('spin')} Rotation <span>on</span></button>
           <span class="stage-hint" data-drag-hint hidden>${icon('spin')} DRAG TO ROTATE</span>
         </div>
         <div class="product-copy">
@@ -156,7 +156,7 @@ export function flavourStudio() {
         <p>Swipe or drag to explore the four flavours.</p>
       </div>
       <div class="flight-colour-panel">
-      <div class="flight-stage" data-stage data-swipe tabindex="0" role="group" aria-label="Floating 3D makhana packets. Sweep the mouse sideways, swipe, drag, or use the left and right arrows to change flavour.">
+      <div class="flight-stage" data-stage data-swipe tabindex="0" role="group" aria-label="PanPops pack photos. Swipe, drag, or use the left and right arrows to change flavour.">
         <div class="carousel-stills" aria-hidden="true">
           ${products.map((product, index) => packImage(product, 'carousel-pack ' + ['center','next','parked','prev'][index])).join('')}
         </div>

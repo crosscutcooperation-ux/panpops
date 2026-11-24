@@ -1,13 +1,14 @@
 import { initBoxInspector } from './box-inspector.js'
 import { initAdminPage } from './admin.js'
 import { loadCatalogue } from './api.js'
-import { productById } from './catalog.js'
+import { productById, USE_PRODUCT_PHOTOS } from './catalog.js'
 import { playCartArrival } from './cart-arrival.js'
 import { getCart, addLine } from './cart.js'
 import { initCartPage } from './cart-page.js'
 import { initCheckoutPage } from './checkout.js'
 import { initAccountPage, loadAccount, initMyAccount } from './account.js'
 import { initCollections } from './collections.js'
+import { initHeroCarousel } from './hero-carousel.js'
 
 const motion = matchMedia('(prefers-reduced-motion: reduce)')
 const toast = document.querySelector('.toast')
@@ -36,6 +37,7 @@ function addToCart(product, origin) {
 }
 
 function mountScene(stage, create) {
+  if (USE_PRODUCT_PHOTOS) return () => undefined
   const host = stage.querySelector('[data-scene]')
   let scene
   let pending = false
@@ -188,37 +190,8 @@ function initCrossing(stage) {
   render()
 }
 
-function initHeroVideo(video) {
-  const toggle = document.querySelector('[data-hero-video-toggle]')
-  let userPaused = motion.matches
-  let visible = true
-  const updateLabel = () => { toggle.textContent = video.paused ? 'Play video' : 'Pause video' }
-  function syncPlayback() {
-    if (userPaused || !visible || document.hidden) video.pause()
-    else video.play().catch(updateLabel)
-    updateLabel()
-  }
-  video.muted = true
-  video.autoplay = !motion.matches
-  toggle.hidden = false
-  toggle.addEventListener('click', () => { userPaused = !video.paused; syncPlayback() })
-  video.addEventListener('play', updateLabel)
-  video.addEventListener('pause', updateLabel)
-  video.addEventListener('error', () => { toggle.hidden = true })
-  motion.addEventListener('change', () => {
-    userPaused = motion.matches
-    video.autoplay = !motion.matches
-    syncPlayback()
-  })
-  document.addEventListener('visibilitychange', syncPlayback)
-  new IntersectionObserver(entries => {
-    visible = entries[0].isIntersecting
-    syncPlayback()
-  }).observe(video)
-  syncPlayback()
-}
-const heroVideo = document.querySelector('[data-hero-video]')
-if (heroVideo) initHeroVideo(heroVideo)
+const hero = document.querySelector('[data-hero-carousel]')
+if (hero) initHeroCarousel(hero)
 
 async function startStore() {
   try { await loadCatalogue() }

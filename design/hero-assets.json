@@ -1,0 +1,27 @@
+{
+  "tool": "Built-in image_gen",
+  "reference": "https://www.farmley.com/",
+  "assets": [
+    {
+      "id": "chataka",
+      "generatedSource": "/Users/robin/.codex/generated_images/01a1af5e-2187-7ad1-abe6-602d8297931c/exec-f98ff041-e51b-4cd2-a3c0-8a49c0d395b9.png",
+      "websiteAsset": "public/media/hero/chataka-campaign.jpg"
+    },
+    {
+      "id": "cream",
+      "generatedSource": "/Users/robin/.codex/generated_images/01a1af5e-2187-7ad1-abe6-602d8297931c/exec-d07dc97d-26f6-42c9-989d-d63eab19468f.png",
+      "websiteAsset": "public/media/hero/cream-campaign.jpg"
+    },
+    {
+      "id": "peri",
+      "generatedSource": "/Users/robin/.codex/generated_images/01a1af5e-2187-7ad1-abe6-602d8297931c/exec-baf11b58-bd4e-40eb-b582-d3d910a73283.png",
+      "websiteAsset": "public/media/hero/peri-campaign.jpg"
+    },
+    {
+      "id": "salt",
+      "generatedSource": "/Users/robin/.codex/generated_images/01a1af5e-2187-7ad1-abe6-602d8297931c/exec-04b64db1-6949-42a6-bb6b-5ca854d45e71.png",
+      "websiteAsset": "public/media/hero/salt-campaign.jpg"
+    }
+  ],
+  "notes": "Final hero artwork has the pouch included in each generated photograph. Source product photos are preserved at public/media/products/*.png; optimised full-resolution copies are used for product pages. Generation prompts: hero-integrated-campaigns.json. Initial background-plate prompts: hero-campaigns.json."
+}

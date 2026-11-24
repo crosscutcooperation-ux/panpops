@@ -17,7 +17,8 @@ export const comboById = Object.fromEntries(combos.map(combo => [combo.id, combo
 export const boxName = () => 'Custom box'
 export const money = amount => '₹' + amount.toLocaleString('en-IN', { maximumFractionDigits: 2 })
 export const productUrl = product => '/shop/' + product.slug + '/'
-export const front = product => '/media/' + product.id + '.webp'
+export const USE_PRODUCT_PHOTOS = true
+export const front = product => '/media/products/' + product.id + '-cutout.webp'
 export const back = product => '/media/' + product.id + '-back.webp'
 export const MIN_BOX = 2
 export const MAX_BOX = 6

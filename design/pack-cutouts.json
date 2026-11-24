@@ -1,0 +1,27 @@
+{
+  "tool": "Built-in image_gen",
+  "prompt": "Precisely remove the white studio background from this supplied PanVibes PANPOPS product photograph. This is a background-extraction edit ONLY. Keep the exact original pouch, all artwork, lettering, flavours, metallic cream colour, lower-colour panel, wrinkles, zipper, notch, seals and full rounded bottom silhouette unchanged. Do not redesign, regenerate, relight or re-render the packet. Output one pack on a truly TRANSPARENT RGBA background. Remove all white/gray surrounding pixels and the studio ground shadow outside the actual bag. Follow the physical edge meticulously around the top seal, side curves and curved bottom; no rectangular white corners, no white halo, no white fringe, no leftover white rim anywhere, and no clipping of real gold or coloured packaging. Use clean antialiased alpha along the actual pouch contour, with edge colours decontaminated from the white background. Preserve fine printed labels exactly as supplied, sharp and readable. Keep the entire pouch with a small transparent margin. No replacement background, no checkerboard printed into the image, no added text, no new objects. Transparent background required.",
+  "assets": [
+    {
+      "id": "chataka",
+      "generatedSource": "/Users/robin/.codex/generated_images/01a1af5e-2187-7ad1-abe6-602d8297931c/exec-04c780b9-1b78-46b0-9eb7-d473475d1bef.png",
+      "websiteAsset": "public/media/products/chataka-cutout.webp"
+    },
+    {
+      "id": "cream",
+      "generatedSource": "/Users/robin/.codex/generated_images/01a1af5e-2187-7ad1-abe6-602d8297931c/exec-406928b8-2ca9-4f7d-9926-8e15516428ec.png",
+      "websiteAsset": "public/media/products/cream-cutout.webp"
+    },
+    {
+      "id": "peri",
+      "generatedSource": "/Users/robin/.codex/generated_images/01a1af5e-2187-7ad1-abe6-602d8297931c/exec-1ca320b3-f78a-441e-81cb-0633ba759d44.png",
+      "websiteAsset": "public/media/products/peri-cutout.webp"
+    },
+    {
+      "id": "salt",
+      "generatedSource": "/Users/robin/.codex/generated_images/01a1af5e-2187-7ad1-abe6-602d8297931c/exec-8c2eb9d2-483d-4511-92d2-16a7cafbd87b.png",
+      "websiteAsset": "public/media/products/salt-cutout.webp"
+    }
+  ],
+  "notes": "White studio backgrounds removed with transparent output; uploaded source files remain intact. WebP encoding preserves alpha for the website."
+}

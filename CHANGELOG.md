@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0 — 2026-11-25
+
+### Changed
+- Added four original photographic hero campaigns with automatic horizontal slides, swipe, keyboard, pause, and reduced-motion support.
+- Replaced rotating pouch viewers with the supplied product photos on individual product pages, combos, the shop, and flavour browsing. Original 3D source files remain available for future development.
+- Updated pack imagery throughout shopping, box-building, cart and checkout displays.
+- Removed white studio backgrounds from all four pack photos with transparent WebP cutouts, and enlarged the combo photo layout.
+
 ## 0.2.1 — 2026-11-17
 
 ### Changed

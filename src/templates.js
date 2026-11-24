@@ -5,6 +5,7 @@ import { inspectorTemplate } from './parcel-art.js'
 import { renderTrolley } from './trolley.js'
 import { cartPage, checkoutPage, accountPage, adminPage, myAccountPage } from './commerce-templates.js'
 import { shopPage, productPage, comboPage, boxPage, flavourStudio } from './collection-templates.js'
+import { heroCarousel } from './hero-carousel.js'
 
 export { icon } from './icons.js'
 const logo = '<img src="/media/logo.png" width="353" height="104" alt="PanVibes PanPops">'
@@ -34,13 +35,7 @@ function header(page) {
 
 function home() {
   return `
-    <section class="hero-video" aria-label="PanPops roasted makhana. Pick your crunch.">
-      <video class="hero-video-media" id="hero-film" data-hero-video autoplay muted loop playsinline preload="metadata" poster="/media/panpops-hero-poster.jpg" width="1920" height="1080" aria-label="PanPops four roasted makhana flavours">
-        <source src="/media/panpops-hero.mp4" type="video/mp4">
-        <img src="/media/panpops-hero-poster.jpg" alt="Pick your crunch. Four PanPops roasted makhana flavours.">
-      </video>
-      <button class="hero-video-toggle" data-hero-video-toggle type="button" aria-controls="hero-film" hidden>Pause video</button>
-    </section>
+    ${heroCarousel()}
     <section id="products" class="flavour-crossing" aria-labelledby="crossing-heading">
       <div class="crossing-stage" data-crossing>
         <div class="crossing-heading">

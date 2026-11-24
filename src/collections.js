@@ -1,4 +1,4 @@
-import { products, productById, comboById, boxName, productUrl, front, money, MIN_BOX, MAX_BOX } from './catalog.js'
+import { products, productById, comboById, boxName, productUrl, front, money, MIN_BOX, MAX_BOX, USE_PRODUCT_PHOTOS } from './catalog.js'
 import { icon } from './icons.js'
 import { productStyle } from './collection-templates.js'
 import { getCart, addLine, packSubtotal, MAX_QUANTITY } from './cart.js'
@@ -22,6 +22,7 @@ function addToCart(type, ids, quantity = 1, origin, comboId) {
 }
 
 function mountScene(stage, create) {
+  if (USE_PRODUCT_PHOTOS) return () => undefined
   const host = stage.querySelector('[data-scene]')
   let scene
   let pending = false
@@ -108,7 +109,7 @@ function initShop(root) {
     scene?.setMotion(playing)
   }
   async function load() {
-    if (!visible || motion.matches || scene || pending || unavailable) return
+    if (USE_PRODUCT_PHOTOS || !visible || motion.matches || scene || pending || unavailable) return
     pending = true
     try {
       const canvas = document.createElement('canvas')
