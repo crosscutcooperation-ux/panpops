@@ -280,6 +280,8 @@ body[data-page="product"] .catalog-section:has(.product-photo-stage),body[data-p
 .catalog-section .flight-stage .carousel-pack.prev{--pose:translate(-270%,-40%) scale(.76) rotate(-13deg);transform:var(--pose);animation-delay:-3s;z-index:2}
 .catalog-section .flight-stage .carousel-pack.parked{--pose:translate(10%,-92%) scale(.56) rotate(-8deg);transform:var(--pose);animation-delay:-4.5s;z-index:0}
 @keyframes packet-drift{0%,100%{transform:var(--pose) translateY(9px) rotate(-2deg)}50%{transform:var(--pose) translateY(-13px) rotate(2deg)}}
+.catalog-section .flight-stage[data-photo-orbit] .carousel-stills{perspective:1400px;transform-style:preserve-3d}
+.catalog-section .flight-stage[data-photo-orbit] .carousel-pack{animation:none!important;transition:none;top:50%;height:85%;opacity:1;z-index:auto;filter:drop-shadow(7px 20px 17px #46372124)}
 .catalog-section .flight-studio[data-paused] .carousel-pack{animation-play-state:paused}
 .catalog-section .flight-annotation{position:absolute;color:#8d806b;font:italic 14px/1.4 Georgia,serif;z-index:2;pointer-events:none;transform:rotate(-10deg)}
 .catalog-section .annotation-left{left:7%;top:9%}
@@ -370,6 +372,7 @@ body[data-page="product"] .catalog-section:has(.product-photo-stage),body[data-p
 .catalog-section .flight-instruction{font-size:6px}
 .catalog-section .flight-footnote{font-size:5px;letter-spacing:.04em;min-height:49px;gap:8px}
 .catalog-section .flight-stage .carousel-pack{height:65%}
+.catalog-section .flight-stage[data-photo-orbit] .carousel-pack{height:64%}
 .catalog-section .flight-stage .carousel-pack.center{--pose:translate(-63%,-41%) rotate(5deg)}
 .catalog-section .flight-stage .carousel-pack.prev{--pose:translate(-149%,-56%) scale(.62) rotate(-14deg)}
 .catalog-section .flight-stage .carousel-pack.next{--pose:translate(35%,-47%) scale(.62) rotate(14deg)}

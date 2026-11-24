@@ -37,7 +37,6 @@ export function initHeroCarousel(root) {
   let position = 1
   let busy = false
   let userPaused = motion.matches
-  let hovering = false
   let focused = false
   let visible = true
   let timer
@@ -62,7 +61,7 @@ export function initHeroCarousel(root) {
     clearTimeout(timer)
     pause.textContent = userPaused ? 'Play' : 'Pause'
     pause.setAttribute('aria-label', userPaused ? 'Start banner rotation' : 'Pause banner rotation')
-    if (!userPaused && !hovering && !focused && visible && !document.hidden) timer = setTimeout(() => go(1, true), 6000)
+    if (!userPaused && !focused && visible && !document.hidden) timer = setTimeout(() => go(1, true), 5000)
   }
   function complete() {
     clearTimeout(transitionTimer)
@@ -73,7 +72,6 @@ export function initHeroCarousel(root) {
   }
   function go(delta, automatic = false) {
     if (busy || !delta) return
-    if (!automatic) userPaused = true
     position += delta
     active = (position - 1 + slides.length) % slides.length
     root.dataset.active = campaigns[active].id
@@ -92,11 +90,11 @@ export function initHeroCarousel(root) {
   track.addEventListener('transitionend', event => { if (event.target === track && event.propertyName === 'transform') complete() })
   root.querySelectorAll('[data-hero-step]').forEach(button => button.addEventListener('click', () => go(Number(button.dataset.heroStep))))
   dots.forEach((dot, index) => dot.addEventListener('click', () => go(index - active)))
-  pause.addEventListener('click', () => { userPaused = !userPaused; if (!userPaused) { focused = false; hovering = false } schedule() })
-  root.addEventListener('pointerenter', event => { if (event.pointerType === 'mouse') { hovering = true; schedule() } })
-  root.addEventListener('pointerleave', () => { hovering = false; schedule() })
-  root.addEventListener('focusin', () => { focused = true; schedule() })
-  root.addEventListener('focusout', event => { focused = root.contains(event.relatedTarget); schedule() })
+  pause.addEventListener('click', () => { userPaused = !userPaused; if (!userPaused) focused = false; schedule() })
+  // Mouse/touch navigation restarts the interval. Only keyboard focus pauses it
+  // so a link cannot move away while someone is tabbing through the hero.
+  root.addEventListener('focusin', event => { focused = event.target.matches(':focus-visible'); schedule() })
+  root.addEventListener('focusout', event => { focused = !!event.relatedTarget && root.contains(event.relatedTarget) && event.relatedTarget.matches(':focus-visible'); schedule() })
   root.addEventListener('keydown', event => {
     if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return
     event.preventDefault()

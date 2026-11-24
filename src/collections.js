@@ -4,6 +4,7 @@ import { productStyle } from './collection-templates.js'
 import { getCart, addLine, packSubtotal, MAX_QUANTITY } from './cart.js'
 import { playCartArrival, playBoxArrival } from './cart-arrival.js'
 import { flyPouch, animateElement } from './trolley-motion.js'
+import { createPhotoOrbit } from './photo-orbit.js'
 
 const motion = matchMedia('(prefers-reduced-motion: reduce)')
 let notify
@@ -365,14 +366,15 @@ function initCarousel(root) {
   let active = 0
   let lastSwitch = -Infinity
   let mouseGesture
-  const getScene = mountScene(stage, async (scenes, ...args) => {
+  let photoOrbit
+  const getScene = USE_PRODUCT_PHOTOS ? () => photoOrbit : mountScene(stage, async (scenes, ...args) => {
     const scene = await scenes.createTurntable(...args)
     scene.select(active, 1, true)
     scene.setMotion(playing)
     return scene
   })
 
-  function select(next, direction) {
+  function select(next, direction, fromOrbit = false) {
     const target = (next + products.length) % products.length
     if (target === active) return
     const delta = (target - active + products.length) % products.length
@@ -389,8 +391,11 @@ function initCarousel(root) {
     stills.forEach((image, i) => {
       image.className = 'carousel-pack ' + ['center','next','parked','prev'][(i - active + products.length) % products.length]
     })
-    getScene()?.select(active, direction ?? (delta === 3 ? -1 : 1))
+    if (!fromOrbit) getScene()?.select(active, direction ?? (delta === 3 ? -1 : 1))
   }
+
+  if (USE_PRODUCT_PHOTOS) photoOrbit = createPhotoOrbit(stage, stills, next => select(next, 1, true))
+  window.addEventListener('pagehide', event => { if (!event.persisted) photoOrbit?.dispose() })
 
   root.querySelectorAll('[data-flavour]').forEach(button => button.addEventListener('click', () => select(Number(button.dataset.flavour))))
   root.querySelectorAll('[data-step]').forEach(button => {

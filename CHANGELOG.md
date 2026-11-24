@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1 — 2026-11-25
+
+### Fixed
+- Made the four flavour photographs orbit around one another, with swipe and arrow navigation along the same path.
+- Made the hero advance every five seconds, including after mouse or touch navigation. Keyboard focus, explicit pause and reduced-motion preferences still pause autoplay.
+
 ## 0.3.0 — 2026-11-25
 
 ### Changed
